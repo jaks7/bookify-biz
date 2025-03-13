@@ -39,8 +39,8 @@ const Navbar = () => {
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <Link to="/" className="flex items-center">
-          <span className="text-2xl font-bold text-gradient">hora</span>
-          <span className="ml-1 text-2xl font-bold">libre.es</span>
+          <span className="text-2xl font-bold text-gradient">Hora</span>
+          <span className="ml-1 text-2xl font-bold">Libre</span>
         </Link>
 
         {/* Desktop Navigation */}
