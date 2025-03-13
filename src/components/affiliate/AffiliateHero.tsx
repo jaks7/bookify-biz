@@ -21,7 +21,7 @@ const AffiliateHero = () => {
             </h1>
             
             <p className="text-lg text-gray-600 mb-8 animate-fade-up" style={{ animationDelay: '200ms' }}>
-              Recomienda Bookify Biz a negocios que conoces y recibe 15€ por cada nueva 
+              Recomienda horalibre.es a negocios que conoces y recibe 15€ por cada nueva 
               suscripción. Pago inmediato vía PayPal o tarjetas regalo de Amazon.
             </p>
             
@@ -69,7 +69,7 @@ const AffiliateHero = () => {
               
               <div className="relative z-10">
                 <img 
-                  src="https://placehold.co/600x400/f8fafc/e2e8f0?text=Affiliate+Program" 
+                  src="https://placehold.co/600x400/f8fafc/e2e8f0?text=Programa+de+Afiliados" 
                   alt="Programa de afiliados" 
                   className="w-full h-auto rounded-xl mb-8"
                 />

@@ -77,8 +77,8 @@ const Hero = () => {
               </div>
               <div className="pt-8">
                 <img 
-                  src="https://placehold.co/1200x700/f8fafc/e2e8f0?text=Dashboard+de+Bookify+Biz" 
-                  alt="Dashboard de Bookify Biz" 
+                  src="https://placehold.co/1200x700/f8fafc/e2e8f0?text=Dashboard+de+horalibre.es" 
+                  alt="Dashboard de horalibre.es" 
                   className="w-full h-auto"
                   style={{ maxHeight: '500px', objectFit: 'cover' }}
                 />
