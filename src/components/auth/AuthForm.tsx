@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowRight, Mail, Lock, Smartphone, Google } from 'lucide-react';
+import { ArrowRight, Mail, Lock, Smartphone, Globe } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,7 +57,7 @@ const AuthForm = () => {
               onClick={handleGoogleAuth}
               disabled={isLoading}
             >
-              <Google className="mr-2 h-5 w-5" />
+              <Globe className="mr-2 h-5 w-5" />
               Continuar con Google
             </Button>
             
@@ -147,7 +147,7 @@ const AuthForm = () => {
               onClick={handleGoogleAuth}
               disabled={isLoading}
             >
-              <Google className="mr-2 h-5 w-5" />
+              <Globe className="mr-2 h-5 w-5" />
               Registrarse con Google
             </Button>
             
