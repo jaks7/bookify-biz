@@ -22,12 +22,12 @@ const steps = [
 
 const testimonials = [
   {
-    content: "Me uní al programa de afiliados hace apenas 3 meses y ya he ganado más de 300€ recomendando Bookify Biz a otros negocios de mi zona. El proceso es increíblemente sencillo.",
+    content: "Me uní al programa de afiliados hace apenas 3 meses y ya he ganado más de 300€ recomendando HoraLibre a otros negocios de mi zona. El proceso es increíblemente sencillo.",
     author: "Carlos Rodríguez",
     role: "Propietario de gimnasio"
   },
   {
-    content: "Como consultora de marketing para pequeñas empresas, recomiendo Bookify Biz a todos mis clientes. El programa de afiliados me permite generar ingresos adicionales mientras ayudo a mis clientes a mejorar su negocio.",
+    content: "Como consultora de marketing para pequeñas empresas, recomiendo HoraLibre a todos mis clientes. El programa de afiliados me permite generar ingresos adicionales mientras ayudo a mis clientes a mejorar su negocio.",
     author: "Laura Martínez",
     role: "Consultora de marketing"
   }
@@ -119,7 +119,7 @@ const AffiliateFeatures = () => {
           </h2>
           <p className="text-white/80 max-w-2xl mx-auto mb-8">
             Te proporcionamos todos los materiales que necesitas para promocionar 
-            Bookify Biz: banners, textos para correos, imágenes para redes sociales y más.
+            HoraLibre: banners, textos para correos, imágenes para redes sociales y más.
           </p>
           
           <div className="flex flex-wrap justify-center gap-4">

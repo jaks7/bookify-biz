@@ -165,7 +165,7 @@ const PricingPlans = () => {
             
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h4 className="font-semibold mb-2">¿Necesito instalar algún software?</h4>
-              <p className="text-gray-600">No, Bookify Biz es una plataforma basada en la nube. Solo necesitas un navegador web e internet para acceder.</p>
+              <p className="text-gray-600">No, HoraLibre es una plataforma basada en la nube. Solo necesitas un navegador web e internet para acceder.</p>
             </div>
             
             <div className="bg-white rounded-xl p-6 shadow-sm">

@@ -138,7 +138,7 @@ const Index = () => {
               Lo que dicen <span className="text-gradient">nuestros clientes</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Más de 1,000 negocios ya están optimizando su tiempo y aumentando sus ingresos con Bookify Biz.
+              Más de 1,000 negocios ya están optimizando su tiempo y aumentando sus ingresos con HoraLibre.
             </p>
           </div>
           
@@ -152,7 +152,7 @@ const Index = () => {
                 ))}
               </div>
               <p className="text-gray-700 mb-6">
-                "Desde que empezamos a usar Bookify Biz, hemos reducido las citas perdidas en un 80% y aumentado nuestros ingresos en un 30%. Los clientes adoran la facilidad para reservar."
+                "Desde que empezamos a usar HoraLibre, hemos reducido las citas perdidas en un 80% y aumentado nuestros ingresos en un 30%. Los clientes adoran la facilidad para reservar."
               </p>
               <div className="flex items-center">
                 <div className="w-12 h-12 rounded-full bg-gray-300 mr-4 overflow-hidden">
@@ -231,7 +231,7 @@ const Index = () => {
               Lleva tu negocio al <span className="text-gradient">siguiente nivel</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Más ingresos, menos estrés y más tiempo para ti. Así es como Bookify Biz 
+              Más ingresos, menos estrés y más tiempo para ti. Así es como HoraLibre 
               transforma tu pequeño negocio.
             </p>
           </div>

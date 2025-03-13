@@ -25,7 +25,7 @@ const CTA = () => {
               </h2>
               
               <p className="text-lg text-gray-600 mb-8">
-                Únete a miles de negocios que ya están aprovechando Bookify Biz 
+                Únete a miles de negocios que ya están aprovechando HoraLibre 
                 para mejorar su eficiencia y aumentar sus ingresos.
               </p>
               
@@ -74,7 +74,7 @@ const CTA = () => {
                 </div>
                 
                 <blockquote className="text-white/90 text-lg italic mb-6">
-                  "Bookify Biz ha transformado mi peluquería. Ya no tengo huecos en mi agenda
+                  "HoraLibre ha transformado mi peluquería. Ya no tengo huecos en mi agenda
                   y he reducido las cancelaciones en un 80%. Increíble herramienta."
                 </blockquote>
                 
