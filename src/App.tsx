@@ -13,6 +13,7 @@ import Register from './pages/Register';
 import Agenda from './pages/Agenda';
 import CalendarView from './pages/CalendarView';
 import BusinessIntelligence from './pages/BusinessIntelligence';
+import WhatsApp from './pages/WhatsApp';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/calendar" element={<CalendarView />} />
           <Route path="/inteligenciaNegocio" element={<BusinessIntelligence />} />
+          <Route path="/whatsapp" element={<WhatsApp />} />
           <Route path="/precios" element={<Pricing />} />
           <Route path="/afiliados" element={<Affiliates />} />
           {/* Redirect outdated component routes to the new pages */}

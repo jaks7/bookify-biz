@@ -5,6 +5,7 @@ import CTA from "@/components/home/CTA";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import AnalyticsSlideshow from "@/components/home/AnalyticsSlideshow";
+import WhatsAppPreview from "@/components/home/WhatsAppPreview";
 
 const Index = () => {
   return (
@@ -82,11 +83,7 @@ const Index = () => {
                 </div>
               </div>
               <div className="p-6">
-                <img 
-                  src="https://placehold.co/800x500/f8fafc/e2e8f0?text=WhatsApp+Integration" 
-                  alt="Integración WhatsApp" 
-                  className="w-full h-auto rounded-lg"
-                />
+                <WhatsAppPreview />
               </div>
             </div>
             
