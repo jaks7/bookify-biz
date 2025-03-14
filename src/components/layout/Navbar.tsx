@@ -65,7 +65,7 @@ const Navbar = () => {
               Iniciar Sesión
             </Button>
           </Link>
-          <Link to="/login">
+          <Link to="/register">
             <Button className="bg-bookify-500 hover:bg-bookify-600 text-white font-medium">
               Registrarse
             </Button>
@@ -102,7 +102,7 @@ const Navbar = () => {
                   Iniciar Sesión
                 </Button>
               </Link>
-              <Link to="/login">
+              <Link to="/register">
                 <Button className="w-full justify-center bg-bookify-500 hover:bg-bookify-600 text-white">
                   Registrarse
                 </Button>
