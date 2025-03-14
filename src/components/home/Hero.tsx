@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
+import { AgendaPreview } from '@/components/home/AgendaPreview';
 
 const Hero = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -76,12 +77,7 @@ const Hero = () => {
                 </div>
               </div>
               <div className="pt-8">
-                <img 
-                  src="https://placehold.co/1200x700/f8fafc/e2e8f0?text=Dashboard+de+horalibre.es" 
-                  alt="Dashboard de horalibre.es" 
-                  className="w-full h-auto"
-                  style={{ maxHeight: '500px', objectFit: 'cover' }}
-                />
+                <AgendaPreview />
               </div>
             </div>
           </div>
