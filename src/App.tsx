@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Agenda from './pages/Agenda';
 import CalendarView from './pages/CalendarView';
+import BusinessIntelligence from './pages/BusinessIntelligence';
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/calendar" element={<CalendarView />} />
+          <Route path="/inteligenciaNegocio" element={<BusinessIntelligence />} />
           <Route path="/precios" element={<Pricing />} />
           <Route path="/afiliados" element={<Affiliates />} />
           {/* Redirect outdated component routes to the new pages */}

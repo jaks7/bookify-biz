@@ -1,10 +1,10 @@
-
 import React from "react";
 import Hero from "@/components/home/Hero";
 import Features from "@/components/home/Features";
 import CTA from "@/components/home/CTA";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import AnalyticsSlideshow from "@/components/home/AnalyticsSlideshow";
 
 const Index = () => {
   return (
@@ -67,11 +67,7 @@ const Index = () => {
                 </div>
               </div>
               <div className="p-6">
-                <img 
-                  src="https://placehold.co/800x500/f8fafc/e2e8f0?text=Análisis+Avanzado" 
-                  alt="Dashboard analítico" 
-                  className="w-full h-auto rounded-lg"
-                />
+                <AnalyticsSlideshow />
               </div>
             </div>
           </div>
