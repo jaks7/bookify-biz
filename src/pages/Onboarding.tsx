@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Clock, Briefcase, Users, MapPin, Building, CalendarClock, ClockOff, Clock4 } from 'lucide-react';
+import { Clock, Briefcase, Users, MapPin, Building, CalendarClock, Clock4, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 
-// Define the schema for the form
 const formSchema = z.object({
   name: z.string().min(2, { message: 'El nombre debe tener al menos 2 caracteres' }),
   address: z.string().optional(),
@@ -131,7 +129,6 @@ const Onboarding = () => {
   const onSubmit = async (data: BusinessFormValues) => {
     setIsSubmitting(true);
     try {
-      // Filter only fields needed for the backend
       const businessData = {
         name: data.name,
         address: data.address || '',
@@ -142,14 +139,10 @@ const Onboarding = () => {
       };
 
       console.log('Submitting business data:', businessData);
-      // Here we would make the API call to create the business
-      // For now we're just simulating a successful API call
-      
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       toast.success('Negocio creado correctamente');
-      navigate('/agenda'); // Redirect to agenda after success
+      navigate('/agenda');
     } catch (error) {
       console.error('Error creating business:', error);
       toast.error('Ha ocurrido un error al crear el negocio');
@@ -436,7 +429,7 @@ const Onboarding = () => {
                                 </span>
                               ) : (
                                 <span className="flex items-center gap-1 text-muted-foreground">
-                                  <ClockOff className="h-4 w-4" />
+                                  <Ban className="h-4 w-4" />
                                   Cerrado
                                 </span>
                               )}
