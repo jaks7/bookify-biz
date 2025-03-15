@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { User, Search, MessageSquare, Calendar, Clock, CheckCircle, XCircle, Filter } from 'lucide-react';
+import { User, Search, MessageSquare, Calendar, Clock, CheckCircle, XCircle, Filter, Check, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
