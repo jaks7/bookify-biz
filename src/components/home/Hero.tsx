@@ -1,12 +1,14 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
 import { AgendaPreview } from '@/components/home/AgendaPreview';
+import { CalendarPreview } from '@/components/home/CalendarPreview';
 
 const Hero = () => {
   const heroRef = useRef<HTMLDivElement>(null);
+  const [activePreview, setActivePreview] = useState<'agenda' | 'calendar'>('agenda');
   
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -23,7 +25,16 @@ const Hero = () => {
     };
     
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    
+    // Auto switch between previews
+    const interval = setInterval(() => {
+      setActivePreview(prev => prev === 'agenda' ? 'calendar' : 'agenda');
+    }, 5000);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      clearInterval(interval);
+    };
   }, []);
   
   return (
@@ -77,7 +88,34 @@ const Hero = () => {
                 </div>
               </div>
               <div className="pt-8">
-                <AgendaPreview />
+                <div className="relative">
+                  <div 
+                    className={`transition-opacity duration-500 ${activePreview === 'agenda' ? 'opacity-100' : 'opacity-0 absolute inset-0'}`}
+                    style={{ zIndex: activePreview === 'agenda' ? 1 : 0 }}
+                  >
+                    <AgendaPreview />
+                  </div>
+                  <div 
+                    className={`transition-opacity duration-500 ${activePreview === 'calendar' ? 'opacity-100' : 'opacity-0 absolute inset-0'}`}
+                    style={{ zIndex: activePreview === 'calendar' ? 1 : 0 }}
+                  >
+                    <CalendarPreview />
+                  </div>
+                </div>
+                <div className="flex justify-center mt-4 pb-4">
+                  <div className="flex space-x-2">
+                    <button 
+                      className={`w-2 h-2 rounded-full transition-colors ${activePreview === 'agenda' ? 'bg-bookify-500' : 'bg-gray-300'}`}
+                      onClick={() => setActivePreview('agenda')}
+                      aria-label="Ver vista de agenda"
+                    />
+                    <button 
+                      className={`w-2 h-2 rounded-full transition-colors ${activePreview === 'calendar' ? 'bg-bookify-500' : 'bg-gray-300'}`}
+                      onClick={() => setActivePreview('calendar')}
+                      aria-label="Ver vista de calendario"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
