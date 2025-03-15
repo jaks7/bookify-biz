@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Clock, Briefcase, Users, MapPin, Building, CalendarClock } from 'lucide-react';
+import { Clock, Briefcase, Users, MapPin, Building, CalendarClock, ClockOff, Clock4 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 
 // Define the schema for the form
 const formSchema = z.object({
@@ -26,7 +27,8 @@ const formSchema = z.object({
   type_of_business: z.string().min(1, { message: 'Selecciona un tipo de negocio' }),
   professionals: z.string().min(1, { message: 'Indica cuántos profesionales trabajan en el negocio' }),
   schedule: z.record(z.object({
-    enabled: z.boolean(),
+    open: z.boolean(),
+    continuous: z.boolean(),
     morning: z.object({
       from: z.string(),
       to: z.string(),
@@ -35,12 +37,12 @@ const formSchema = z.object({
       from: z.string(),
       to: z.string(),
     }),
-    closed: z.boolean(),
   })),
 });
 
 type ScheduleDay = {
-  enabled: boolean;
+  open: boolean;
+  continuous: boolean;
   morning: {
     from: string;
     to: string;
@@ -49,7 +51,6 @@ type ScheduleDay = {
     from: string;
     to: string;
   };
-  closed: boolean;
 };
 
 type BusinessFormValues = z.infer<typeof formSchema>;
@@ -69,10 +70,10 @@ const businessTypes = [
 ];
 
 const professionalOptions = [
-  { value: '1', label: 'Solo yo' },
-  { value: '2-5', label: 'Entre 2 y 5' },
-  { value: '6-10', label: 'Entre 6 y 10' },
-  { value: '10+', label: 'Más de 10' },
+  { value: '1', label: 'Solo yo', description: 'Eres el único profesional con agenda' },
+  { value: '2-5', label: 'Entre 2 y 5', description: 'Equipo pequeño de profesionales' },
+  { value: '6-10', label: 'Entre 6 y 10', description: 'Equipo mediano de profesionales' },
+  { value: '10+', label: 'Más de 10', description: 'Equipo grande de profesionales' },
 ];
 
 const weekDays = [
@@ -86,7 +87,8 @@ const weekDays = [
 ];
 
 const defaultSchedule = {
-  enabled: true,
+  open: true,
+  continuous: false,
   morning: {
     from: '09:00',
     to: '14:00',
@@ -95,7 +97,6 @@ const defaultSchedule = {
     from: '16:00',
     to: '20:00',
   },
-  closed: false,
 };
 
 const Onboarding = () => {
@@ -118,7 +119,7 @@ const Onboarding = () => {
       thursday: { ...defaultSchedule },
       friday: { ...defaultSchedule },
       saturday: { ...defaultSchedule, afternoon: { from: '16:00', to: '19:00' } },
-      sunday: { ...defaultSchedule, enabled: false, closed: true },
+      sunday: { ...defaultSchedule, open: false },
     },
   };
 
@@ -172,10 +173,14 @@ const Onboarding = () => {
     setStep(step - 1);
   };
 
-  const toggleDayClosed = (day: string) => {
-    const currentDay = form.getValues().schedule[day] as ScheduleDay;
-    form.setValue(`schedule.${day}.closed`, !currentDay.closed);
-    form.setValue(`schedule.${day}.enabled`, currentDay.closed);
+  const toggleDayOpen = (day: string) => {
+    const currentValue = form.getValues().schedule[day].open;
+    form.setValue(`schedule.${day}.open`, !currentValue);
+  };
+
+  const toggleContinuousSchedule = (day: string) => {
+    const currentValue = form.getValues().schedule[day].continuous;
+    form.setValue(`schedule.${day}.continuous`, !currentValue);
   };
 
   return (
@@ -330,18 +335,19 @@ const Onboarding = () => {
                   Personal
                 </CardTitle>
                 <CardDescription>
-                  Cuéntanos cuántos profesionales trabajan en el negocio
+                  Cuéntanos cuántos profesionales necesitan gestionar sus agendas en el negocio
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <FormField
                   control={form.control}
                   name="professionals"
                   render={({ field }) => (
                     <FormItem className="space-y-3">
-                      <FormLabel>Nº de profesionales</FormLabel>
+                      <FormLabel>Nº de profesionales con agenda</FormLabel>
                       <FormDescription>
-                        Esta información nos ayuda a configurar correctamente tus agendas
+                        Indica cuántos profesionales necesitan gestionar citas con clientes 
+                        (no incluyas personal administrativo o sin agenda de citas)
                       </FormDescription>
                       <FormControl>
                         <RadioGroup
@@ -350,13 +356,18 @@ const Onboarding = () => {
                           className="grid grid-cols-1 md:grid-cols-2 gap-4"
                         >
                           {professionalOptions.map((option) => (
-                            <FormItem key={option.value} className="flex items-center space-x-3 space-y-0">
+                            <FormItem key={option.value} className="relative flex space-x-3 space-y-0 rounded-md border p-4 shadow-sm hover:bg-accent">
                               <FormControl>
-                                <RadioGroupItem value={option.value} />
+                                <RadioGroupItem value={option.value} className="absolute left-4 top-4" />
                               </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                {option.label}
-                              </FormLabel>
+                              <div className="pl-5">
+                                <FormLabel className="text-base font-medium cursor-pointer">
+                                  {option.label}
+                                </FormLabel>
+                                <FormDescription>
+                                  {option.description}
+                                </FormDescription>
+                              </div>
                             </FormItem>
                           ))}
                         </RadioGroup>
@@ -393,17 +404,17 @@ const Onboarding = () => {
                   const dayPath = `schedule.${day.id}` as const;
                   return (
                     <div key={day.id} className="space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between border-b pb-2">
                         <div className="flex items-center space-x-2">
                           <FormField
                             control={form.control}
-                            name={`${dayPath}.closed` as const}
+                            name={`${dayPath}.open` as const}
                             render={({ field }) => (
                               <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                                 <FormControl>
-                                  <Checkbox
+                                  <Switch
                                     checked={field.value}
-                                    onCheckedChange={() => toggleDayClosed(day.id)}
+                                    onCheckedChange={() => toggleDayOpen(day.id)}
                                   />
                                 </FormControl>
                                 <FormLabel className="font-medium text-base">
@@ -415,10 +426,20 @@ const Onboarding = () => {
                         </div>
                         <FormField
                           control={form.control}
-                          name={`${dayPath}.closed` as const}
+                          name={`${dayPath}.open` as const}
                           render={({ field }) => (
-                            <div className="text-sm text-muted-foreground">
-                              {field.value ? "Cerrado" : "Abierto"}
+                            <div className="flex items-center gap-2 text-sm">
+                              {field.value ? (
+                                <span className="flex items-center gap-1 text-green-600">
+                                  <Clock className="h-4 w-4" />
+                                  Abierto
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-muted-foreground">
+                                  <ClockOff className="h-4 w-4" />
+                                  Cerrado
+                                </span>
+                              )}
                             </div>
                           )}
                         />
@@ -426,67 +447,121 @@ const Onboarding = () => {
 
                       <FormField
                         control={form.control}
-                        name={`${dayPath}.closed` as const}
+                        name={`${dayPath}.open` as const}
                         render={({ field }) => (
                           <>
-                            {!field.value && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                  <FormLabel className="text-sm">Mañana</FormLabel>
-                                  <div className="flex items-center space-x-2">
-                                    <FormField
-                                      control={form.control}
-                                      name={`${dayPath}.morning.from` as const}
-                                      render={({ field }) => (
-                                        <FormItem className="flex-1">
-                                          <FormControl>
-                                            <Input type="time" {...field} />
-                                          </FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <span>a</span>
-                                    <FormField
-                                      control={form.control}
-                                      name={`${dayPath}.morning.to` as const}
-                                      render={({ field }) => (
-                                        <FormItem className="flex-1">
-                                          <FormControl>
-                                            <Input type="time" {...field} />
-                                          </FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
+                            {field.value && (
+                              <div className="pl-10 space-y-4">
+                                <FormField
+                                  control={form.control}
+                                  name={`${dayPath}.continuous` as const}
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value}
+                                          onCheckedChange={() => toggleContinuousSchedule(day.id)}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="font-normal cursor-pointer">
+                                        Horario continuo (sin cierre al mediodía)
+                                      </FormLabel>
+                                    </FormItem>
+                                  )}
+                                />
+
+                                {form.getValues().schedule[day.id].continuous ? (
+                                  <div className="space-y-2">
+                                    <FormLabel className="text-sm flex items-center gap-1">
+                                      <Clock4 className="h-4 w-4" />
+                                      Horario continuo
+                                    </FormLabel>
+                                    <div className="flex items-center space-x-2">
+                                      <FormField
+                                        control={form.control}
+                                        name={`${dayPath}.morning.from` as const}
+                                        render={({ field }) => (
+                                          <FormItem className="flex-1">
+                                            <FormControl>
+                                              <Input type="time" {...field} />
+                                            </FormControl>
+                                          </FormItem>
+                                        )}
+                                      />
+                                      <span>a</span>
+                                      <FormField
+                                        control={form.control}
+                                        name={`${dayPath}.afternoon.to` as const}
+                                        render={({ field }) => (
+                                          <FormItem className="flex-1">
+                                            <FormControl>
+                                              <Input type="time" {...field} />
+                                            </FormControl>
+                                          </FormItem>
+                                        )}
+                                      />
+                                    </div>
                                   </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <FormLabel className="text-sm">Tarde</FormLabel>
-                                  <div className="flex items-center space-x-2">
-                                    <FormField
-                                      control={form.control}
-                                      name={`${dayPath}.afternoon.from` as const}
-                                      render={({ field }) => (
-                                        <FormItem className="flex-1">
-                                          <FormControl>
-                                            <Input type="time" {...field} />
-                                          </FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <span>a</span>
-                                    <FormField
-                                      control={form.control}
-                                      name={`${dayPath}.afternoon.to` as const}
-                                      render={({ field }) => (
-                                        <FormItem className="flex-1">
-                                          <FormControl>
-                                            <Input type="time" {...field} />
-                                          </FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
+                                ) : (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                      <FormLabel className="text-sm">Mañana</FormLabel>
+                                      <div className="flex items-center space-x-2">
+                                        <FormField
+                                          control={form.control}
+                                          name={`${dayPath}.morning.from` as const}
+                                          render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                              <FormControl>
+                                                <Input type="time" {...field} />
+                                              </FormControl>
+                                            </FormItem>
+                                          )}
+                                        />
+                                        <span>a</span>
+                                        <FormField
+                                          control={form.control}
+                                          name={`${dayPath}.morning.to` as const}
+                                          render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                              <FormControl>
+                                                <Input type="time" {...field} />
+                                              </FormControl>
+                                            </FormItem>
+                                          )}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <FormLabel className="text-sm">Tarde</FormLabel>
+                                      <div className="flex items-center space-x-2">
+                                        <FormField
+                                          control={form.control}
+                                          name={`${dayPath}.afternoon.from` as const}
+                                          render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                              <FormControl>
+                                                <Input type="time" {...field} />
+                                              </FormControl>
+                                            </FormItem>
+                                          )}
+                                        />
+                                        <span>a</span>
+                                        <FormField
+                                          control={form.control}
+                                          name={`${dayPath}.afternoon.to` as const}
+                                          render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                              <FormControl>
+                                                <Input type="time" {...field} />
+                                              </FormControl>
+                                            </FormItem>
+                                          )}
+                                        />
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
+                                )}
                               </div>
                             )}
                           </>
