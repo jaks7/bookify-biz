@@ -85,9 +85,10 @@ const weekDays = [
   { id: 'sunday', name: 'Domingo' },
 ];
 
+// Updated default schedule to be continuous by default
 const defaultSchedule = {
   open: true,
-  continuous: false,
+  continuous: true, // Changed from false to true
   morning: {
     from: '09:00',
     to: '14:00',
@@ -172,7 +173,7 @@ const Onboarding = () => {
     form.setValue(`schedule.${day}.open`, !currentValue);
   };
 
-  const toggleContinuousSchedule = (day: string) => {
+  const toggleScheduleType = (day: string) => {
     const currentValue = form.getValues().schedule[day].continuous;
     form.setValue(`schedule.${day}.continuous`, !currentValue);
   };
@@ -453,12 +454,12 @@ const Onboarding = () => {
                                     <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                                       <FormControl>
                                         <Checkbox
-                                          checked={field.value}
-                                          onCheckedChange={() => toggleContinuousSchedule(day.id)}
+                                          checked={!field.value}
+                                          onCheckedChange={(checked) => toggleScheduleType(day.id)}
                                         />
                                       </FormControl>
                                       <FormLabel className="font-normal cursor-pointer">
-                                        Horario continuo (sin cierre al mediodía)
+                                        Horario partido (con cierre al mediodía)
                                       </FormLabel>
                                     </FormItem>
                                   )}
