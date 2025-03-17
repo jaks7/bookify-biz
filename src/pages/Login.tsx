@@ -1,63 +1,42 @@
-
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, ArrowRight, Loader2, Globe } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "../stores/authContext";
-
-interface FormData {
-  email: string;
-  password: string;
-}
+import { useAuth } from '../stores/authContext';
 
 const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
-  const auth = useAuth();
-  const [formData, setFormData] = useState<FormData>({
-    email: '',
-    password: '',
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { login } = useAuth();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+    setIsLoading(true);
 
     try {
-      await auth.login({
-        email: formData.email,
-        password: formData.password
-      });
-      
+      await login({ email, password });
       toast({
         title: "Sesión iniciada",
         description: "Has iniciado sesión correctamente",
       });
-      
       navigate('/mi_perfil');
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión. Por favor, verifica tus credenciales.');
+      setError(err.response?.data?.non_field_errors?.[0] || 'Error al iniciar sesión');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = () => {
-    setIsLoading(true);
     window.location.href = 'http://127.0.0.1:8000/accounts/google/login/';
   };
 
@@ -109,11 +88,11 @@ const Login = () => {
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                     <Input
-                      name="email"
                       type="email"
+                      id="email"
                       placeholder="Correo electrónico"
-                      value={formData.email}
-                      onChange={handleChange}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                       className="h-11 pl-10 rounded-lg"
                       disabled={isLoading}
@@ -125,11 +104,11 @@ const Login = () => {
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                     <Input
-                      name="password"
                       type="password"
+                      id="password"
                       placeholder="Contraseña"
-                      value={formData.password}
-                      onChange={handleChange}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                       className="h-11 pl-10 rounded-lg"
                       disabled={isLoading}

@@ -1,5 +1,4 @@
-
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import axios from 'axios';
 
 // Types
@@ -32,7 +31,7 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (credentials: { email: string; password: string }) => Promise<boolean>;
+  login: (credentials: { email: string; password: string }) => Promise<void>;
   logout: () => void;
   fetchUserData: () => Promise<any>;
   switchBusiness: (businessId: string) => void;
@@ -53,14 +52,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isAuthenticated: !!localStorage.getItem('token'),
   });
 
-  // Setup axios auth header if token exists
-  useEffect(() => {
-    if (state.token) {
-      axios.defaults.headers.common['Authorization'] = `Token ${state.token}`;
-    }
-  }, [state.token]);
+  // Usar useRef para rastrear si ya se inicializó
+  const initialized = useRef(false);
 
-  const login = async (credentials: { email: string; password: string }): Promise<boolean> => {
+  // Inicializar datos del usuario una sola vez
+  useEffect(() => {
+    const initializeAuth = async () => {
+      // Evitar múltiples inicializaciones
+      if (initialized.current) return;
+      initialized.current = true;
+
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        axios.defaults.headers.common['Authorization'] = `Token ${token}`;
+        const response = await axios.get('http://127.0.0.1:8000/members/me/');
+        
+        setState(prev => ({
+          ...prev,
+          token,
+          user: { email: response.data.email },
+          profile: response.data.profile,
+          currentBusiness: response.data.current_business,
+          availableBusinesses: response.data.available_businesses,
+          isAuthenticated: true
+        }));
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        logout();
+      }
+    };
+
+    initializeAuth();
+  }, []); // Solo se ejecuta una vez al montar
+
+  const login = async (credentials: { email: string; password: string }) => {
     try {
       const response = await axios.post('http://127.0.0.1:8000/dj-rest-auth/login/', credentials);
       const token = response.data.key;
@@ -68,14 +95,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Token ${token}`;
       
+      const userResponse = await axios.get('http://127.0.0.1:8000/members/me/');
       setState(prev => ({
         ...prev,
         token,
+        user: { email: userResponse.data.email },
+        profile: userResponse.data.profile,
+        currentBusiness: userResponse.data.current_business,
+        availableBusinesses: userResponse.data.available_businesses,
         isAuthenticated: true
       }));
-      
-      await fetchUserData();
-      return true;
     } catch (error) {
       console.error('Error en login:', error);
       throw error;
@@ -83,25 +112,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchUserData = async () => {
+    if (!state.token) return;
+    
     setState(prev => ({ ...prev, isLoading: true }));
     try {
-      const response = await axios.get('http://127.0.0.1:8000/me/', {
-        headers: {
-          'Authorization': `Token ${state.token}`
-        }
-      });
-      
+      const response = await axios.get('http://127.0.0.1:8000/members/me/');
       setState(prev => ({
         ...prev,
-        user: {
-          email: response.data.email
-        },
+        user: { email: response.data.email },
         profile: response.data.profile,
         currentBusiness: response.data.current_business,
         availableBusinesses: response.data.available_businesses,
         isLoading: false
       }));
-      
       return response.data;
     } catch (error) {
       setState(prev => ({ ...prev, isLoading: false }));
@@ -111,6 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    initialized.current = false; // Resetear el flag de inicialización
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
     

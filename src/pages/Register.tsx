@@ -1,4 +1,3 @@
-
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Phone, AlertCircle, ArrowRight, Loader2, Globe, CheckCircle } from 'lucide-react';
