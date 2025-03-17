@@ -15,6 +15,7 @@ import CalendarView from './pages/CalendarView';
 import BusinessIntelligence from './pages/BusinessIntelligence';
 import WhatsApp from './pages/WhatsApp';
 import Onboarding from './pages/Onboarding';
+import Profile from './pages/Profile';
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/precios" element={<Pricing />} />
           <Route path="/afiliados" element={<Affiliates />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/mi_perfil" element={<Profile />} />
           {/* Redirect outdated component routes to the new pages */}
           <Route path="/components/Login" element={<Navigate to="/login" replace />} />
           <Route path="/components/Register" element={<Navigate to="/register" replace />} />

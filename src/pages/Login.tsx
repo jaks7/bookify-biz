@@ -1,4 +1,3 @@
-
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, ArrowRight, Loader2, Globe } from 'lucide-react';
@@ -6,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthStore } from "../stores/auth";
 
 interface FormData {
   email: string;
@@ -15,6 +15,7 @@ interface FormData {
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const authStore = useAuthStore();
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -36,32 +37,17 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/dj-rest-auth/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        }),
+      await authStore.login({
+        email: formData.email,
+        password: formData.password
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Error al iniciar sesión');
-      }
-
-      // Guardar el token en localStorage
-      localStorage.setItem('token', data.key);
       
       toast({
         title: "Sesión iniciada",
         description: "Has iniciado sesión correctamente",
       });
       
-      navigate('/agenda');
+      navigate('/mi_perfil');
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión. Por favor, verifica tus credenciales.');
     } finally {
