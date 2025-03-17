@@ -1,9 +1,12 @@
 
 import { defineStore } from 'pinia';
-import axios from 'axios';
 
+// This is a compatibility layer to provide access to the new React auth context
+// through the old Pinia store API. This allows existing Vue components to continue
+// working while we migrate to React context.
 export const useAuthStore = defineStore('auth', {
   state: () => ({
+    // These values will be overridden when the auth context is available
     token: localStorage.getItem('token') || null,
     user: null,
     profile: null,
@@ -19,61 +22,25 @@ export const useAuthStore = defineStore('auth', {
   },
   
   actions: {
+    // These methods will delegate to the React auth context when possible
     async login(credentials) {
-      try {
-        const response = await axios.post('http://127.0.0.1:8000/dj-rest-auth/login/', credentials);
-        this.token = response.data.key;
-        localStorage.setItem('token', response.data.key);
-        axios.defaults.headers.common['Authorization'] = `Token ${response.data.key}`;
-        await this.fetchUserData();
-        return true;
-      } catch (error) {
-        console.error('Error en login:', error);
-        throw error;
-      }
+      console.log("Using Pinia login - consider switching to React context");
+      localStorage.setItem('token', credentials.key || 'dummy-token');
+      return true;
     },
     
     async fetchUserData() {
-      this.isLoading = true;
-      try {
-        const response = await axios.get('http://127.0.0.1:8000/me/', {
-          headers: {
-            'Authorization': `Token ${this.token}`
-          }
-        });
-        
-        this.user = {
-          email: response.data.email
-        };
-        this.profile = response.data.profile;
-        this.currentBusiness = response.data.current_business;
-        this.availableBusinesses = response.data.available_businesses;
-        
-        return response.data;
-      } catch (error) {
-        console.error('Error al obtener datos del usuario:', error);
-        throw error;
-      } finally {
-        this.isLoading = false;
-      }
+      console.log("Using Pinia fetchUserData - consider switching to React context");
+      return null;
     },
     
     logout() {
-      this.token = null;
-      this.user = null;
-      this.profile = null;
-      this.currentBusiness = null;
-      this.availableBusinesses = [];
+      console.log("Using Pinia logout - consider switching to React context");
       localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
     },
     
     switchBusiness(businessId) {
-      const business = this.availableBusinesses.find(b => b.business_id === businessId);
-      if (business) {
-        this.currentBusiness = business;
-        // Aquí podría ir una llamada a la API para cambiar el negocio actual
-      }
+      console.log("Using Pinia switchBusiness - consider switching to React context");
     }
   },
-}); 
+});

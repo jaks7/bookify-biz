@@ -1,3 +1,4 @@
+
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, ArrowRight, Loader2, Globe } from 'lucide-react';
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuthStore } from "../stores/auth";
+import { useAuth } from "../stores/authContext";
 
 interface FormData {
   email: string;
@@ -15,7 +16,7 @@ interface FormData {
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const authStore = useAuthStore();
+  const auth = useAuth();
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -37,7 +38,7 @@ const Login = () => {
     setError('');
 
     try {
-      await authStore.login({
+      await auth.login({
         email: formData.email,
         password: formData.password
       });
