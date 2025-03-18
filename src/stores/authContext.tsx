@@ -140,11 +140,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const switchBusiness = (businessId: string) => {
-    const business = state.availableBusinesses.find(b => b.business_id === businessId);
-    if (business) {
-      setState(prev => ({ ...prev, currentBusiness: business }));
-      // Aquí podría ir una llamada a la API para cambiar el negocio actual
+  const switchBusiness = async (businessId: string) => {
+    try {
+      // Llamar al endpoint para actualizar el negocio actual
+      await axios.put('http://127.0.0.1:8000/members/me/update/', {
+        current_business_id: businessId
+      });
+      
+      // Actualizar los datos del usuario para reflejar el cambio
+      await fetchUserData();
+    } catch (error) {
+      console.error('Error switching business:', error);
+      throw error;
     }
   };
 
