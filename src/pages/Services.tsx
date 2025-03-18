@@ -14,36 +14,33 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 
+// Definición de tipos para profesionales y servicios
+interface Professional {
+  id: number;
+  name: string;
+  lastName: string;
+}
+
+interface Service {
+  id: number;
+  name: string;
+  duration: number;
+  price: number;
+  professionalIds: number[];
+}
+
 // Mock data for professionals and services
-const mockProfessionals = [
+const mockProfessionals: Professional[] = [
   { id: 1, name: "Ana", lastName: "García" },
   { id: 2, name: "Carlos", lastName: "Rodríguez" },
   { id: 3, name: "Elena", lastName: "López" },
   { id: 4, name: "David", lastName: "Martínez" },
 ];
 
-const mockServices = [
-  { 
-    id: 1, 
-    name: "Consulta General", 
-    duration: 30, 
-    price: 50, 
-    professionalIds: [1, 3] 
-  },
-  { 
-    id: 2, 
-    name: "Tratamiento Intensivo", 
-    duration: 60, 
-    price: 90, 
-    professionalIds: [1, 2, 4] 
-  },
-  { 
-    id: 3, 
-    name: "Revisión Rápida", 
-    duration: 15, 
-    price: 30, 
-    professionalIds: [2] 
-  },
+const mockServices: Service[] = [
+  { id: 1, name: "Consulta General", duration: 30, price: 50, professionalIds: [1, 3] },
+  { id: 2, name: "Tratamiento Intensivo", duration: 60, price: 90, professionalIds: [1, 2, 4] },
+  { id: 3, name: "Revisión Rápida", duration: 15, price: 30, professionalIds: [2] },
 ];
 
 // Schema for validating service form
@@ -57,8 +54,8 @@ const serviceSchema = z.object({
 type ServiceFormValues = z.infer<typeof serviceSchema>;
 
 const Services = () => {
-  const [services, setServices] = useState(mockServices);
-  const [professionals] = useState(mockProfessionals);
+  const [services, setServices] = useState<Service[]>(mockServices);
+  const [professionals] = useState<Professional[]>(mockProfessionals);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<null | { id: number }>(null);
   const { toast } = useToast();
@@ -87,9 +84,12 @@ const Services = () => {
       });
     } else {
       // Add new service
-      const newService = {
+      const newService: Service = {
         id: services.length ? Math.max(...services.map(s => s.id)) + 1 : 1,
-        ...values,
+        name: values.name,
+        duration: values.duration,
+        price: values.price,
+        professionalIds: values.professionalIds,
       };
       setServices([...services, newService]);
       toast({

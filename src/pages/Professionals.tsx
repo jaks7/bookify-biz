@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -106,16 +105,11 @@ const Professionals = () => {
   });
 
   const onSubmit = (values: ProfessionalFormValues) => {
-    const professionalData = {
-      ...values,
-      schedules: editingProfessional ? editingProfessional.schedules : {},
-    };
-
     if (editingProfessional) {
       // Update existing professional
       setProfessionals(professionals.map(professional => 
         professional.id === editingProfessional.id 
-          ? { ...professional, ...professionalData, id: professional.id } 
+          ? { ...professional, ...values } 
           : professional
       ));
       toast({
@@ -124,9 +118,11 @@ const Professionals = () => {
       });
     } else {
       // Add new professional
-      const newProfessional = {
+      const newProfessional: Professional = {
         id: professionals.length ? Math.max(...professionals.map(p => p.id)) + 1 : 1,
-        ...professionalData,
+        name: values.name,
+        lastName: values.lastName,
+        workingDays: values.workingDays,
         schedules: {},
       };
       setProfessionals([...professionals, newProfessional]);
