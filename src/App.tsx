@@ -24,6 +24,17 @@ import Professionals from './pages/Professionals';
 import Services from './pages/Services';
 import Clients from './pages/Clients';
 
+// Demo pages
+import DemoAgenda from './pages/demo/Agenda';
+import DemoCalendarView from './pages/demo/CalendarView';
+import DemoDashboard from './pages/demo/Dashboard';
+import DemoBusinesses from './pages/demo/Businesses';
+import DemoSettings from './pages/demo/Settings';
+import DemoProfessionals from './pages/demo/Professionals';
+import DemoServices from './pages/demo/Services';
+import DemoClients from './pages/demo/Clients';
+import DemoProfile from './pages/demo/Profile';
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -46,13 +57,24 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/mi_perfil" element={<Profile />} />
             
-            {/* New management routes */}
+            {/* Management routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/businesses" element={<Businesses />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/professionals" element={<Professionals />} />
             <Route path="/services" element={<Services />} />
             <Route path="/clients" element={<Clients />} />
+            
+            {/* Demo routes */}
+            <Route path="/demo/agenda" element={<DemoAgenda />} />
+            <Route path="/demo/calendar" element={<DemoCalendarView />} />
+            <Route path="/demo/dashboard" element={<DemoDashboard />} />
+            <Route path="/demo/businesses" element={<DemoBusinesses />} />
+            <Route path="/demo/settings" element={<DemoSettings />} />
+            <Route path="/demo/professionals" element={<DemoProfessionals />} />
+            <Route path="/demo/services" element={<DemoServices />} />
+            <Route path="/demo/clients" element={<DemoClients />} />
+            <Route path="/demo/mi_perfil" element={<DemoProfile />} />
             
             {/* Redirect outdated component routes to the new pages */}
             <Route path="/components/Login" element={<Navigate to="/login" replace />} />
