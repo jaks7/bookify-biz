@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../stores/authContext';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const auth = useAuth();
+  const { user, profile, currentBusiness, availableBusinesses, isAuthenticated, logout, switchBusiness } = useAuth();
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
@@ -39,32 +38,13 @@ const Profile = () => {
     ]
   };
   
-  useEffect(() => {
-    async function loadUserData() {
-      if (!auth.isAuthenticated) {
-        navigate('/login');
-        return;
-      }
-      
-      setLoading(true);
-      try {
-        await auth.fetchUserData();
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los datos del perfil",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    loadUserData();
-  }, [auth, navigate, toast]);
+  if (!isAuthenticated) {
+    navigate('/login');
+    return null;
+  }
 
   const handleLogout = () => {
-    auth.logout();
+    logout();
     toast({
       title: "Sesión cerrada",
       description: "Has cerrado sesión correctamente",
@@ -73,7 +53,7 @@ const Profile = () => {
   };
 
   const handleSwitchBusiness = (businessId: string) => {
-    auth.switchBusiness(businessId);
+    switchBusiness(businessId);
     toast({
       title: "Negocio cambiado",
       description: "Has cambiado de negocio correctamente",
@@ -118,27 +98,27 @@ const Profile = () => {
                   <>
                     <div>
                       <p className="text-sm text-muted-foreground">Nombre completo</p>
-                      <p className="font-medium">{auth.profile?.name} {auth.profile?.surnames}</p>
+                      <p className="font-medium">{profile?.name} {profile?.surnames}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Email</p>
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-muted-foreground" />
-                        <p>{auth.user?.email}</p>
+                        <p>{user?.email}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Teléfono</p>
                       <div className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-muted-foreground" />
-                        <p>{auth.profile?.phone || 'No especificado'}</p>
+                        <p>{profile?.phone || 'No especificado'}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Dirección</p>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <p>{auth.profile?.address || 'No especificada'}</p>
+                        <p>{profile?.address || 'No especificada'}</p>
                       </div>
                     </div>
                   </>
@@ -177,16 +157,16 @@ const Profile = () => {
                   <>
                     <div>
                       <p className="text-sm text-muted-foreground">Nombre del negocio</p>
-                      <p className="font-medium">{auth.currentBusiness?.name || 'Sin negocio'}</p>
+                      <p className="font-medium">{currentBusiness?.name || 'Sin negocio'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Tipo de negocio</p>
-                      <p>{auth.currentBusiness?.type_of_business || 'No especificado'}</p>
+                      <p>{currentBusiness?.type_of_business || 'No especificado'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Estado</p>
                       <p>
-                        {auth.currentBusiness?.configuration_is_completed
+                        {currentBusiness?.configuration_is_completed
                           ? 'Configuración completada'
                           : 'Pendiente de configurar'}
                       </p>
@@ -194,7 +174,7 @@ const Profile = () => {
                   </>
                 )}
               </CardContent>
-              {!auth.currentBusiness?.configuration_is_completed && (
+              {!currentBusiness?.configuration_is_completed && (
                 <CardFooter>
                   <Button 
                     size="sm" 
@@ -208,7 +188,7 @@ const Profile = () => {
             </Card>
             
             {/* Negocios disponibles */}
-            {auth.availableBusinesses.length > 1 && (
+            {availableBusinesses.length > 1 && (
               <Card className="col-span-3">
                 <CardHeader>
                   <CardTitle>Mis Negocios</CardTitle>
@@ -224,16 +204,16 @@ const Profile = () => {
                         <Skeleton className="h-12 w-full" />
                       </>
                     ) : (
-                      auth.availableBusinesses.map((business) => (
+                      availableBusinesses.map((business) => (
                         <div 
                           key={business.business_id}
                           className={`p-4 rounded-lg border flex justify-between items-center ${
-                            business.business_id === auth.currentBusiness?.business_id
+                            business.business_id === currentBusiness?.business_id
                               ? 'bg-primary/5 border-primary/20'
                               : 'hover:bg-accent cursor-pointer'
                           }`}
                           onClick={() => {
-                            if (business.business_id !== auth.currentBusiness?.business_id) {
+                            if (business.business_id !== currentBusiness?.business_id) {
                               handleSwitchBusiness(business.business_id);
                             }
                           }}
@@ -242,7 +222,7 @@ const Profile = () => {
                             <p className="font-medium">{business.name}</p>
                             <p className="text-sm text-muted-foreground">{business.type_of_business}</p>
                           </div>
-                          {business.business_id === auth.currentBusiness?.business_id ? (
+                          {business.business_id === currentBusiness?.business_id ? (
                             <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">Activo</span>
                           ) : (
                             <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />

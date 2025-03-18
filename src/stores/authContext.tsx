@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import axios from 'axios';
 
 // Types
@@ -52,26 +52,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isAuthenticated: !!localStorage.getItem('token'),
   });
 
-  // Usar useRef para rastrear si ya se inicializó
   const initialized = useRef(false);
 
-  // Inicializar datos del usuario una sola vez
+  // Solo llamar a fetchUserData una vez al iniciar
   useEffect(() => {
     const initializeAuth = async () => {
-      // Evitar múltiples inicializaciones
       if (initialized.current) return;
-      initialized.current = true;
-
+      
       const token = localStorage.getItem('token');
       if (!token) return;
 
       try {
+        initialized.current = true;
         axios.defaults.headers.common['Authorization'] = `Token ${token}`;
         const response = await axios.get('http://127.0.0.1:8000/members/me/');
         
         setState(prev => ({
           ...prev,
-          token,
           user: { email: response.data.email },
           profile: response.data.profile,
           currentBusiness: response.data.current_business,
@@ -85,34 +82,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initializeAuth();
-  }, []); // Solo se ejecuta una vez al montar
+  }, []); // Solo se ejecuta una vez al montar el componente
 
-  const login = async (credentials: { email: string; password: string }) => {
-    try {
-      const response = await axios.post('http://127.0.0.1:8000/dj-rest-auth/login/', credentials);
-      const token = response.data.key;
-      
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
-      
-      const userResponse = await axios.get('http://127.0.0.1:8000/members/me/');
-      setState(prev => ({
-        ...prev,
-        token,
-        user: { email: userResponse.data.email },
-        profile: userResponse.data.profile,
-        currentBusiness: userResponse.data.current_business,
-        availableBusinesses: userResponse.data.available_businesses,
-        isAuthenticated: true
-      }));
-    } catch (error) {
-      console.error('Error en login:', error);
-      throw error;
-    }
-  };
-
-  const fetchUserData = async () => {
-    if (!state.token) return;
+  const fetchUserData = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
     
     setState(prev => ({ ...prev, isLoading: true }));
     try {
@@ -123,12 +97,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         profile: response.data.profile,
         currentBusiness: response.data.current_business,
         availableBusinesses: response.data.available_businesses,
-        isLoading: false
+        isLoading: false,
+        isAuthenticated: true
       }));
       return response.data;
     } catch (error) {
       setState(prev => ({ ...prev, isLoading: false }));
       console.error('Error al obtener datos del usuario:', error);
+      throw error;
+    }
+  }, []);
+
+  const login = async (credentials: { email: string; password: string }) => {
+    try {
+      const response = await axios.post('http://127.0.0.1:8000/dj-rest-auth/login/', credentials);
+      const token = response.data.key;
+      
+      localStorage.setItem('token', token);
+      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
+      
+      setState(prev => ({ ...prev, token }));
+      await fetchUserData();
+    } catch (error) {
+      console.error('Error en login:', error);
       throw error;
     }
   };
