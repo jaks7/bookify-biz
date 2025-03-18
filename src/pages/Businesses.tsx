@@ -93,10 +93,14 @@ const Businesses = () => {
   });
 
   const onSubmit = (values: BusinessFormValues) => {
-    // Add new business
+    // Add new business with required fields
     const newBusiness: Business = {
       business_id: (businesses.length + 1).toString(),
-      ...values,
+      name: values.name,
+      type_of_business: values.type_of_business,
+      postal_code: values.postal_code,
+      province: values.province,
+      city: values.city,
       serviceCount: 0,
       professionalCount: 0
     };

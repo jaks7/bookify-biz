@@ -94,10 +94,14 @@ const Clients = () => {
         description: `${values.name} ${values.lastName} ha sido actualizado correctamente.`,
       });
     } else {
-      // Add new client
+      // Add new client with all required properties
       const newClient: Client = {
         id: clients.length ? Math.max(...clients.map(c => c.id)) + 1 : 1,
-        ...values
+        name: values.name,
+        lastName: values.lastName,
+        phone: values.phone,
+        email: values.email,
+        postalCode: values.postalCode
       };
       setClients([...clients, newClient]);
       toast({
