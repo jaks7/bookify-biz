@@ -1,13 +1,11 @@
-
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, BarChart, Bar, AreaChart, Area, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 import { ArrowUp, ArrowDown, Clock, Users, ShoppingBag, Gauge, TrendingUp } from 'lucide-react';
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 
 const BusinessIntelligence = () => {
   // Mock data for the charts
@@ -63,9 +61,8 @@ const BusinessIntelligence = () => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1 p-4 md:p-6 lg:p-8 bg-gray-50">
+    <AppSidebarWrapper>
+      <div className="flex-1 p-4 md:p-6 lg:p-8 bg-gray-50">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
@@ -462,9 +459,8 @@ const BusinessIntelligence = () => {
             </TabsContent>
           </Tabs>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </AppSidebarWrapper>
   );
 };
 

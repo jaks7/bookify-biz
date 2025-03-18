@@ -17,6 +17,12 @@ import BusinessIntelligence from './pages/BusinessIntelligence';
 import WhatsApp from './pages/WhatsApp';
 import Onboarding from './pages/Onboarding';
 import Profile from './pages/Profile';
+import Dashboard from './pages/Dashboard';
+import Businesses from './pages/Businesses';
+import Settings from './pages/Settings';
+import Professionals from './pages/Professionals';
+import Services from './pages/Services';
+import Clients from './pages/Clients';
 
 const queryClient = new QueryClient();
 
@@ -39,6 +45,15 @@ const App = () => (
             <Route path="/afiliados" element={<Affiliates />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/mi_perfil" element={<Profile />} />
+            
+            {/* New management routes */}
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/businesses" element={<Businesses />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/professionals" element={<Professionals />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/clients" element={<Clients />} />
+            
             {/* Redirect outdated component routes to the new pages */}
             <Route path="/components/Login" element={<Navigate to="/login" replace />} />
             <Route path="/components/Register" element={<Navigate to="/register" replace />} />
