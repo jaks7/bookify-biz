@@ -3,13 +3,14 @@ import React, { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, Users, Filter } from "lucide-react";
+import { CalendarDays, Users } from "lucide-react";
 import { BusinessHours } from "@/components/calendar/BusinessHours";
 import { ProfessionalSchedule } from "@/components/calendar/ProfessionalSchedule";
 import { ProfessionalTimeline } from "@/components/calendar/ProfessionalTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Mock data for demonstrations
 const generateMockData = () => {
@@ -124,7 +125,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
       >
         <TabsList className="w-full grid grid-cols-2">
           <TabsTrigger value="agenda">Agenda</TabsTrigger>
-          <TabsTrigger value="configuration">Configuración</TabsTrigger>
+          <TabsTrigger value="configuration">Horarios</TabsTrigger>
         </TabsList>
         
         <TabsContent value="configuration" className="space-y-4 mt-4">
@@ -175,27 +176,24 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                       Mostrar todos
                     </Label>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-500">Filtrar</span>
-                  </div>
                 </div>
               </div>
             </CardHeader>
             
             <CardContent className="p-4">
-              {!showAllProfessionals && (
+              {workingProfessionals.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
                   {workingProfessionals.map(professional => (
                     <label
                       key={professional.id}
-                      className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full cursor-pointer"
+                      className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full cursor-pointer hover:bg-gray-200 transition-colors"
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
+                        id={`prof-${professional.id}`}
                         checked={selectedProfessionals.includes(professional.id)}
-                        onChange={(e) => handleProfessionalSelection(professional.id, e.target.checked)}
+                        onCheckedChange={(checked) => 
+                          handleProfessionalSelection(professional.id, checked === true)
+                        }
                         className="h-4 w-4"
                       />
                       <span className="text-sm">{professional.name}</span>
