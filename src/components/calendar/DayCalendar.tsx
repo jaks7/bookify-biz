@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -114,6 +113,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   };
 
   const workingProfessionals = professionals.filter(p => p.isWorking);
+  const filteredProfessionals = workingProfessionals.filter(p => selectedProfessionals.includes(p.id));
   
   return (
     <div>
@@ -202,29 +202,81 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                 </div>
               )}
               
-              <div className="space-y-6">
-                {workingProfessionals
-                  .filter(prof => selectedProfessionals.includes(prof.id))
-                  .map(professional => (
-                    <ProfessionalTimeline
-                      key={professional.id}
-                      professional={professional}
-                      selectedDate={selectedDate}
-                    />
-                  ))}
-                  
-                {workingProfessionals.length === 0 && (
-                  <div className="text-center p-6 text-gray-500">
-                    No hay profesionales trabajando este día.
+              {workingProfessionals.length > 0 && selectedProfessionals.length > 0 ? (
+                <div>
+                  {/* Generate time slots from 9:00 to 19:00 with 30 minute intervals */}
+                  <div className="grid gap-2">
+                    {["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
+                      "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", 
+                      "17:00", "17:30", "18:00", "18:30", "19:00"].map((time) => (
+                      <div key={time} className="flex gap-2">
+                        <div className="w-16 text-sm text-gray-500 pt-3">{time}</div>
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {filteredProfessionals.map(professional => {
+                            const appointment = professional.appointments.find(apt => apt.time === time);
+                            const isWithinWorkingHours = professional.workingHours.some(
+                              ({ start, end }) => time >= start && time <= end
+                            );
+                            
+                            return (
+                              <div 
+                                key={`${professional.id}-${time}`}
+                                className={`
+                                  p-3 rounded-lg border flex items-center justify-between transition-all
+                                  ${appointment ? "bg-rose-50 border-rose-200" : 
+                                    isWithinWorkingHours ? "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 cursor-pointer" : 
+                                    "bg-gray-100 border-gray-200"}
+                                `}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`
+                                    p-1.5 rounded-full
+                                    ${appointment ? "bg-rose-100 text-rose-600" : 
+                                      isWithinWorkingHours ? "bg-emerald-100 text-emerald-600" : 
+                                      "bg-gray-200 text-gray-500"}
+                                  `}>
+                                    <CalendarDays className="h-3.5 w-3.5" />
+                                  </div>
+                                  <div>
+                                    <div className="text-xs font-medium">{professional.name}</div>
+                                    {appointment && (
+                                      <div className="text-xs text-gray-500 flex items-center mt-1">
+                                        {appointment.clientName} • {appointment.service}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center">
+                                  {appointment ? (
+                                    <div className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                                      Reservado
+                                    </div>
+                                  ) : isWithinWorkingHours ? (
+                                    <div className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                                      Disponible
+                                    </div>
+                                  ) : (
+                                    <div className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-medium">
+                                      Fuera de horario
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-                
-                {workingProfessionals.length > 0 && selectedProfessionals.length === 0 && (
-                  <div className="text-center p-6 text-gray-500">
-                    Selecciona al menos un profesional para ver su agenda.
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="text-center p-6 text-gray-500">
+                  {workingProfessionals.length === 0 ? 
+                    "No hay profesionales trabajando este día." : 
+                    "Selecciona al menos un profesional para ver su agenda."}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
