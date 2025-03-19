@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import axios from 'axios';
+import { ENDPOINTS } from '@/config/api';
 
 // Types
 interface Profile {
@@ -40,8 +41,31 @@ interface AuthContextType extends AuthState {
 // Create context
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Hook to use the auth context
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+// Configurar axios para incluir el token en todas las peticiones
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Token ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Provider component
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     token: localStorage.getItem('token') || null,
     user: null,
@@ -90,7 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     setState(prev => ({ ...prev, isLoading: true }));
     try {
-      const response = await axios.get('http://127.0.0.1:8000/members/me/');
+      const response = await axios.get(ENDPOINTS.ME);
       setState(prev => ({
         ...prev,
         user: { email: response.data.email },
@@ -110,11 +134,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (credentials: { email: string; password: string }) => {
     try {
-      const response = await axios.post('http://127.0.0.1:8000/dj-rest-auth/login/', credentials);
+      const response = await axios.post(ENDPOINTS.LOGIN, credentials);
       const token = response.data.key;
       
       localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
+      // Ya no necesitamos configurar axios.defaults aquí porque lo manejamos con el interceptor
       
       setState(prev => ({ ...prev, token }));
       await fetchUserData();
@@ -125,9 +149,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    initialized.current = false; // Resetear el flag de inicialización
+    initialized.current = false;
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+    // Ya no necesitamos limpiar axios.defaults aquí
     
     setState({
       token: null,
@@ -142,12 +166,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const switchBusiness = async (businessId: string) => {
     try {
-      // Llamar al endpoint para actualizar el negocio actual
-      await axios.put('http://127.0.0.1:8000/members/me/update/', {
+      await axios.put(ENDPOINTS.ME_UPDATE, {
         current_business_id: businessId
       });
-      
-      // Actualizar los datos del usuario para reflejar el cambio
       await fetchUserData();
     } catch (error) {
       console.error('Error switching business:', error);
@@ -164,13 +185,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return <AuthContext.Provider value={values}>{children}</AuthContext.Provider>;
-};
-
-// Hook to use the auth context
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+}

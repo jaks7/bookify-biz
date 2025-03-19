@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
+import { ENDPOINTS } from '@/config/api';
+import { useAuth } from '@/stores/authContext';
+import { Professional } from '@/types/professional';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Types for our data model
 interface Professional {
@@ -87,86 +103,141 @@ const timeSlots = Array.from({ length: 24 * 4 }, (_, i) => {
 });
 
 const Professionals = () => {
-  const [professionals, setProfessionals] = useState<Professional[]>(mockProfessionals);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingProfessional, setEditingProfessional] = useState<null | Professional>(null);
   const [scheduleProfessional, setScheduleProfessional] = useState<null | Professional>(null);
   const [schedules, setSchedules] = useState<Professional['schedules']>({});
   const { toast } = useToast();
+  const { isAuthenticated, currentBusiness } = useAuth();
+  const navigate = useNavigate();
+  const businessId = currentBusiness?.business_id;
 
-  const form = useForm<ProfessionalFormValues>({
-    resolver: zodResolver(professionalSchema),
+  const form = useForm({
     defaultValues: {
       name: "",
-      lastName: "",
-      workingDays: [],
+      surnames: "",
+      email: "",
+      phone: "",
     },
   });
 
-  const onSubmit = (values: ProfessionalFormValues) => {
-    if (editingProfessional) {
-      // Update existing professional
-      setProfessionals(professionals.map(professional => 
-        professional.id === editingProfessional.id 
-          ? { ...professional, ...values } 
-          : professional
-      ));
+  const fetchProfessionals = async () => {
+    if (!businessId) return;
+    try {
+      const response = await axios.get<Professional[]>(ENDPOINTS.PROFESSIONALS(businessId));
+      setProfessionals(response.data || []);
+    } catch (error) {
+      console.error('Error fetching professionals:', error);
+      setProfessionals([]);
       toast({
-        title: "Profesional actualizado",
-        description: `${values.name} ${values.lastName} ha sido actualizado correctamente.`,
+        title: "Error",
+        description: "No se pudieron cargar los profesionales",
+        variant: "destructive",
       });
-    } else {
-      // Add new professional
-      const newProfessional: Professional = {
-        id: professionals.length ? Math.max(...professionals.map(p => p.id)) + 1 : 1,
-        name: values.name,
-        lastName: values.lastName,
-        workingDays: values.workingDays,
-        schedules: {},
-      };
-      setProfessionals([...professionals, newProfessional]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!businessId) {
+      navigate('/businesses');
+      return;
+    }
+    fetchProfessionals();
+  }, [isAuthenticated, businessId, navigate]);
+
+  const onSubmit = async (data: any) => {
+    if (!businessId) return;
+    try {
+      if (editingProfessional) {
+        await axios.put(
+          ENDPOINTS.PROFESSIONAL_UPDATE(businessId, editingProfessional.professional_id),
+          data
+        );
+        toast({
+          title: "Profesional actualizado",
+          description: `${data.name} ${data.surnames} ha sido actualizado correctamente.`,
+        });
+      } else {
+        await axios.post(ENDPOINTS.PROFESSIONALS_CREATE(businessId), data);
+        toast({
+          title: "Profesional creado",
+          description: `${data.name} ${data.surnames} ha sido añadido correctamente.`,
+        });
+      }
+      setIsFormDialogOpen(false);
+      form.reset();
+      fetchProfessionals();
+    } catch (error: any) {
       toast({
-        title: "Profesional creado",
-        description: `${values.name} ${values.lastName} ha sido añadido correctamente.`,
+        title: "Error",
+        description: error.response?.data?.detail || "No se pudo procesar la operación",
+        variant: "destructive",
       });
     }
-    setIsDialogOpen(false);
-    form.reset();
   };
 
   const openNewProfessionalDialog = () => {
     setEditingProfessional(null);
     form.reset({
       name: "",
-      lastName: "",
-      workingDays: [],
+      surnames: "",
+      email: "",
+      phone: "",
     });
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   };
 
   const handleEdit = (professional: Professional) => {
     setEditingProfessional(professional);
     form.reset({
       name: professional.name,
-      lastName: professional.lastName,
-      workingDays: professional.workingDays,
+      surnames: professional.lastName,
+      email: "",
+      phone: "",
     });
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   };
 
-  const handleDelete = (professionalId: number) => {
-    setProfessionals(professionals.filter(p => p.id !== professionalId));
-    toast({
-      title: "Profesional eliminado",
-      description: "El profesional ha sido eliminado correctamente.",
-    });
+  const handleDeleteClick = (professional: Professional) => {
+    setEditingProfessional(professional);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!businessId || !editingProfessional) return;
+    try {
+      await axios.delete(
+        ENDPOINTS.PROFESSIONAL_DELETE(businessId, editingProfessional.id.toString())
+      );
+      toast({
+        title: "Profesional eliminado",
+        description: "El profesional ha sido eliminado correctamente.",
+      });
+      fetchProfessionals();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.detail || "No se pudo eliminar el profesional",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setEditingProfessional(null);
+    }
   };
 
   const openScheduleDialog = (professional: Professional) => {
     setScheduleProfessional(professional);
     setSchedules({ ...professional.schedules });
-    setIsScheduleDialogOpen(true);
   };
 
   const handleScheduleChange = (day: number, field: 'start' | 'end', time: string) => {
@@ -184,13 +255,8 @@ const Professionals = () => {
     if (!scheduleProfessional) return;
     
     // Update professional schedules
-    setProfessionals(professionals.map(professional => 
-      professional.id === scheduleProfessional.id 
-        ? { ...professional, schedules } 
-        : professional
-    ));
+    fetchProfessionals();
     
-    setIsScheduleDialogOpen(false);
     toast({
       title: "Horarios actualizados",
       description: `Los horarios de ${scheduleProfessional.name} ${scheduleProfessional.lastName} han sido actualizados.`,
@@ -227,34 +293,50 @@ const Professionals = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {professionals.map((professional) => (
-                    <TableRow key={professional.id}>
-                      <TableCell className="font-medium">{professional.name}</TableCell>
-                      <TableCell>{professional.lastName}</TableCell>
-                      <TableCell>
-                        {professional.workingDays
-                          .map(day => dayNames[day])
-                          .join(", ")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="mr-2"
-                          onClick={() => openScheduleDialog(professional)}
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Horarios
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(professional)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(professional.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                  {loading ? (
+                    Array(3).fill(0).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <Skeleton className="h-4 w-3/4" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-1/2" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-2/3" />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Skeleton className="h-4 w-20" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : professionals.length > 0 ? (
+                    professionals.map((professional) => (
+                      <TableRow key={professional.professional_id}>
+                        <TableCell className="font-medium">{professional.name}</TableCell>
+                        <TableCell>{professional.surnames}</TableCell>
+                        <TableCell>{professional.email}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(professional)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDeleteClick(professional)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        No hay profesionales registrados
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -262,7 +344,7 @@ const Professionals = () => {
         </div>
 
         {/* Professional Form Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
@@ -289,7 +371,7 @@ const Professionals = () => {
                 />
                 <FormField
                   control={form.control}
-                  name="lastName"
+                  name="surnames"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Apellidos</FormLabel>
@@ -302,45 +384,26 @@ const Professionals = () => {
                 />
                 <FormField
                   control={form.control}
-                  name="workingDays"
-                  render={() => (
+                  name="email"
+                  render={({ field }) => (
                     <FormItem>
-                      <div className="mb-4">
-                        <FormLabel>Días de trabajo</FormLabel>
-                      </div>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[1, 2, 3, 4, 5, 6, 0].map((day) => (
-                          <FormField
-                            key={day}
-                            control={form.control}
-                            name="workingDays"
-                            render={({ field }) => (
-                              <FormItem
-                                key={day}
-                                className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3"
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(day)}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value, day])
-                                        : field.onChange(
-                                            field.value?.filter(
-                                              (value) => value !== day
-                                            )
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="cursor-pointer">
-                                  {dayNames[day]}
-                                </FormLabel>
-                              </FormItem>
-                            )}
-                          />
-                        ))}
-                      </div>
+                      <FormLabel>Correo electrónico</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: ana@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Teléfono</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: 555-1234-567" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -354,7 +417,7 @@ const Professionals = () => {
         </Dialog>
 
         {/* Schedule Management Dialog */}
-        <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+        <Dialog open={scheduleProfessional !== null} onOpenChange={() => setScheduleProfessional(null)}>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>
@@ -427,6 +490,25 @@ const Professionals = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará permanentemente el profesional
+                y todos sus datos asociados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppSidebarWrapper>
   );

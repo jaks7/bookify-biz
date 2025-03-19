@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,126 +12,171 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { ENDPOINTS } from '@/config/api';
+import { useAuth } from '@/stores/authContext';
+import { Service } from '@/types/service';
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Definición de tipos para profesionales y servicios
+// Solo necesitamos una interfaz Professional
 interface Professional {
-  id: number;
+  professional_id: string;
   name: string;
-  lastName: string;
+  surnames: string;
 }
-
-interface Service {
-  id: number;
-  name: string;
-  duration: number;
-  price: number;
-  professionalIds: number[];
-}
-
-// Mock data for professionals and services
-const mockProfessionals: Professional[] = [
-  { id: 1, name: "Ana", lastName: "García" },
-  { id: 2, name: "Carlos", lastName: "Rodríguez" },
-  { id: 3, name: "Elena", lastName: "López" },
-  { id: 4, name: "David", lastName: "Martínez" },
-];
-
-const mockServices: Service[] = [
-  { id: 1, name: "Consulta General", duration: 30, price: 50, professionalIds: [1, 3] },
-  { id: 2, name: "Tratamiento Intensivo", duration: 60, price: 90, professionalIds: [1, 2, 4] },
-  { id: 3, name: "Revisión Rápida", duration: 15, price: 30, professionalIds: [2] },
-];
 
 // Schema for validating service form
 const serviceSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres" }),
   duration: z.coerce.number().min(5, { message: "La duración mínima es de 5 minutos" }),
-  price: z.coerce.number().min(0, { message: "El precio no puede ser negativo" }),
-  professionalIds: z.array(z.number()).min(1, { message: "Selecciona al menos un profesional" }),
+  price: z.coerce.number().min(0, { message: "El precio no puede ser negativo" })
 });
 
 type ServiceFormValues = z.infer<typeof serviceSchema>;
 
-const Services = () => {
-  const [services, setServices] = useState<Service[]>(mockServices);
-  const [professionals] = useState<Professional[]>(mockProfessionals);
+export default function Services() {
+  const [services, setServices] = useState<Service[]>([]);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingService, setEditingService] = useState<null | { id: number }>(null);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const { isAuthenticated, currentBusiness } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const businessId = currentBusiness?.business_id;
+  const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([]);
+
+  const fetchServices = async () => {
+    if (!businessId) return;
+    try {
+      const response = await axios.get<Service[]>(ENDPOINTS.SERVICES(businessId));
+      setServices(response.data || []);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los servicios",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProfessionals = async () => {
+    if (!businessId) return;
+    try {
+      const response = await axios.get<Professional[]>(ENDPOINTS.PROFESSIONALS(businessId));
+      setProfessionals(response.data);
+    } catch (error) {
+      console.error('Error fetching professionals:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los profesionales",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!businessId) {
+      navigate('/businesses');
+      return;
+    }
+    fetchServices();
+    fetchProfessionals();
+  }, [isAuthenticated, businessId, navigate]);
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
       name: "",
       duration: 30,
-      price: 0,
-      professionalIds: [],
-    },
+      price: 0
+    }
   });
 
-  const onSubmit = (values: ServiceFormValues) => {
-    if (editingService) {
-      // Update existing service
-      setServices(services.map(service => 
-        service.id === editingService.id 
-          ? { ...service, ...values } 
-          : service
-      ));
-      toast({
-        title: "Servicio actualizado",
-        description: `El servicio "${values.name}" ha sido actualizado correctamente.`,
-      });
-    } else {
-      // Add new service
-      const newService: Service = {
-        id: services.length ? Math.max(...services.map(s => s.id)) + 1 : 1,
+  const onSubmit = async (values: ServiceFormValues) => {
+    if (!businessId) return;
+
+    try {
+      const formData = {
         name: values.name,
         duration: values.duration,
-        price: values.price,
-        professionalIds: values.professionalIds,
+        price: values.price.toString(),
+        professional_ids: selectedProfessionals
       };
-      setServices([...services, newService]);
+
+      if (editingService) {
+        await axios.put(
+          ENDPOINTS.SERVICE_UPDATE(businessId, editingService.service_id),
+          formData
+        );
+      } else {
+        await axios.post(ENDPOINTS.SERVICES_CREATE(businessId), formData);
+      }
+
+      setIsDialogOpen(false);
+      form.reset();
+      setSelectedProfessionals([]);
+      fetchServices();
+      
+    } catch (error: any) {
+      console.error('Error en submit:', error);
       toast({
-        title: "Servicio creado",
-        description: `El servicio "${values.name}" ha sido creado correctamente.`,
+        title: "Error",
+        description: error.response?.data?.detail || "No se pudo procesar la operación",
+        variant: "destructive",
       });
     }
-    setIsDialogOpen(false);
-    resetForm();
   };
 
-  const handleEdit = (service: typeof services[0]) => {
+  const handleDelete = async (serviceId: string) => {
+    if (!businessId) return;
+    try {
+      await axios.delete(ENDPOINTS.SERVICE_DELETE(businessId, serviceId));
+      toast({
+        title: "Servicio eliminado",
+        description: "El servicio ha sido eliminado correctamente",
+      });
+      fetchServices();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.detail || "No se pudo eliminar el servicio",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = (service: Service) => {
+    const professionalIds = service.professionals.map(p => p.professional_id);
+    setSelectedProfessionals(professionalIds);
     form.reset({
       name: service.name,
       duration: service.duration,
-      price: service.price,
-      professionalIds: service.professionalIds,
+      price: parseFloat(service.price)
     });
-    setEditingService({ id: service.id });
+    setEditingService(service);
     setIsDialogOpen(true);
-  };
-
-  const handleDelete = (serviceId: number) => {
-    setServices(services.filter(service => service.id !== serviceId));
-    toast({
-      title: "Servicio eliminado",
-      description: "El servicio ha sido eliminado correctamente.",
-    });
+    fetchProfessionals();
   };
 
   const openNewServiceDialog = () => {
-    resetForm();
-    setEditingService(null);
-    setIsDialogOpen(true);
-  };
-
-  const resetForm = () => {
+    setSelectedProfessionals([]);
     form.reset({
       name: "",
       duration: 30,
-      price: 0,
-      professionalIds: [],
+      price: 0
     });
+    setEditingService(null);
+    setIsDialogOpen(true);
+    fetchProfessionals();
   };
 
   return (
@@ -149,7 +193,7 @@ const Services = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Listado de Servicios</CardTitle>
+              <CardTitle>Listado de Servicios </CardTitle>
               <CardDescription>
                 Gestiona los servicios que ofrece tu negocio.
               </CardDescription>
@@ -166,27 +210,53 @@ const Services = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {services.map((service) => (
-                    <TableRow key={service.id}>
-                      <TableCell className="font-medium">{service.name}</TableCell>
-                      <TableCell>{service.duration}</TableCell>
-                      <TableCell>{service.price} €</TableCell>
-                      <TableCell>
-                        {service.professionalIds.map(id => {
-                          const professional = professionals.find(p => p.id === id);
-                          return professional ? `${professional.name} ${professional.lastName}, ` : '';
-                        }).join('').slice(0, -2)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(service)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(service.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                  {loading ? (
+                    // Skeletons para carga
+                    Array(3).fill(0).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <Skeleton className="h-4 w-3/4" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-1/2" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-1/4" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Skeleton className="h-4 w-20 ml-auto" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : services.length > 0 ? (
+                    services.map((service) => (
+                      <TableRow key={service.service_id}>
+                        <TableCell className="font-medium">{service.name}</TableCell>
+                        <TableCell>{service.duration}</TableCell>
+                        <TableCell>{service.price} €</TableCell>
+                        <TableCell>
+                          {service.professionals.map(p => p.fullname).join(", ")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(service)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(service.service_id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        No hay servicios registrados
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -246,53 +316,35 @@ const Services = () => {
                     )}
                   />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="professionalIds"
-                  render={() => (
-                    <FormItem>
-                      <div className="mb-4">
-                        <FormLabel>Profesionales que realizan este servicio</FormLabel>
+                <div className="space-y-3">
+                  <div className="text-base font-medium">
+                    Profesionales que realizan este servicio
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {professionals.map((professional) => (
+                      <div
+                        key={professional.professional_id}
+                        className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3"
+                      >
+                        <Checkbox
+                          checked={selectedProfessionals.includes(professional.professional_id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedProfessionals(prev => [...prev, professional.professional_id]);
+                            } else {
+                              setSelectedProfessionals(prev => 
+                                prev.filter(id => id !== professional.professional_id)
+                              );
+                            }
+                          }}
+                        />
+                        <span className="text-sm">
+                          {professional.name} {professional.surnames}
+                        </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {professionals.map((professional) => (
-                          <FormField
-                            key={professional.id}
-                            control={form.control}
-                            name="professionalIds"
-                            render={({ field }) => {
-                              return (
-                                <FormItem
-                                  key={professional.id}
-                                  className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3"
-                                >
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(professional.id)}
-                                      onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...field.value, professional.id])
-                                          : field.onChange(
-                                              field.value?.filter(
-                                                (value) => value !== professional.id
-                                              )
-                                            )
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="cursor-pointer">
-                                    {professional.name} {professional.lastName}
-                                  </FormLabel>
-                                </FormItem>
-                              )
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    ))}
+                  </div>
+                </div>
                 <DialogFooter>
                   <Button type="submit">Guardar</Button>
                 </DialogFooter>
@@ -303,6 +355,4 @@ const Services = () => {
       </div>
     </AppSidebarWrapper>
   );
-};
-
-export default Services;
+}
