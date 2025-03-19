@@ -1,15 +1,17 @@
+
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, Users } from "lucide-react";
+import { CalendarDays, Users, Clock, User, Bookmark } from "lucide-react";
 import { BusinessHours } from "@/components/calendar/BusinessHours";
 import { ProfessionalSchedule } from "@/components/calendar/ProfessionalSchedule";
-import { ProfessionalTimeline } from "@/components/calendar/ProfessionalTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Professional } from "@/types/professional";
 
 // Mock data for demonstrations
 const generateMockData = () => {
@@ -65,7 +67,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   const { businessHours: initialBusinessHours, professionals: initialProfessionals } = generateMockData();
   
   const [businessHours, setBusinessHours] = useState(initialBusinessHours);
-  const [professionals, setProfessionals] = useState(initialProfessionals);
+  const [professionals, setProfessionals] = useState<Professional[]>(initialProfessionals);
   const [activeTab, setActiveTab] = useState("agenda");
   const [showAllProfessionals, setShowAllProfessionals] = useState(true);
   const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>(
@@ -115,6 +117,31 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   const workingProfessionals = professionals.filter(p => p.isWorking);
   const filteredProfessionals = workingProfessionals.filter(p => selectedProfessionals.includes(p.id));
   
+  // Helper function to get initials
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+  };
+  
+  // Helper function to check if time is within working hours
+  const isWithinWorkingHours = (professional: Professional, time: string) => {
+    return professional.workingHours?.some(
+      ({ start, end }) => time >= start && time < end
+    ) || false;
+  };
+  
+  // Helper function to get appointment end time
+  const getAppointmentEndTime = (time: string, duration: number) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    let totalMinutes = hours * 60 + minutes + duration;
+    const endHours = Math.floor(totalMinutes / 60);
+    const endMinutes = totalMinutes % 60;
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  };
+  
   return (
     <div>
       <Tabs 
@@ -125,10 +152,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
       >
         <TabsList className="w-full grid grid-cols-2">
           <TabsTrigger value="agenda">Agenda</TabsTrigger>
-          <TabsTrigger value="configuration">Horarios</TabsTrigger>
+          <TabsTrigger value="horarios">Horarios</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="configuration" className="space-y-4 mt-4">
+        <TabsContent value="horarios" className="space-y-4 mt-4">
           <BusinessHours 
             initialHours={businessHours} 
             onSave={handleBusinessHoursChange} 
@@ -203,67 +230,84 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
               )}
               
               {workingProfessionals.length > 0 && selectedProfessionals.length > 0 ? (
-                <div>
+                <div className="overflow-auto">
+                  {/* Fixed header with professional names */}
+                  <div className="flex border-b sticky top-0 bg-white z-10">
+                    <div className="w-16"></div> {/* Empty space for time column */}
+                    <div className="flex-1 grid" style={{ 
+                      gridTemplateColumns: `repeat(${filteredProfessionals.length}, minmax(200px, 1fr))` 
+                    }}>
+                      {filteredProfessionals.map(professional => (
+                        <div key={professional.id} className="p-3 text-center font-medium flex items-center justify-center gap-2 bg-gray-50 border-r">
+                          <Avatar className="h-7 w-7">
+                            <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
+                              {getInitials(professional.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{professional.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
                   {/* Generate time slots from 9:00 to 19:00 with 30 minute intervals */}
-                  <div className="grid gap-2">
+                  <div className="grid gap-0">
                     {["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
                       "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", 
                       "17:00", "17:30", "18:00", "18:30", "19:00"].map((time) => (
-                      <div key={time} className="flex gap-2">
-                        <div className="w-16 text-sm text-gray-500 pt-3">{time}</div>
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      <div key={time} className="flex gap-0 border-b">
+                        <div className="w-16 text-sm text-gray-500 p-3 border-r sticky left-0 bg-white">{time}</div>
+                        <div className="flex-1 grid" style={{ 
+                          gridTemplateColumns: `repeat(${filteredProfessionals.length}, minmax(200px, 1fr))` 
+                        }}>
                           {filteredProfessionals.map(professional => {
-                            const appointment = professional.appointments.find(apt => apt.time === time);
-                            const isWithinWorkingHours = professional.workingHours.some(
-                              ({ start, end }) => time >= start && time <= end
-                            );
+                            const appointment = professional.appointments?.find(apt => apt.time === time);
+                            const isAvailable = isWithinWorkingHours(professional, time);
                             
-                            return (
-                              <div 
-                                key={`${professional.id}-${time}`}
-                                className={`
-                                  p-3 rounded-lg border flex items-center justify-between transition-all
-                                  ${appointment ? "bg-rose-50 border-rose-200" : 
-                                    isWithinWorkingHours ? "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 cursor-pointer" : 
-                                    "bg-gray-100 border-gray-200"}
-                                `}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className={`
-                                    p-1.5 rounded-full
-                                    ${appointment ? "bg-rose-100 text-rose-600" : 
-                                      isWithinWorkingHours ? "bg-emerald-100 text-emerald-600" : 
-                                      "bg-gray-200 text-gray-500"}
-                                  `}>
-                                    <CalendarDays className="h-3.5 w-3.5" />
-                                  </div>
-                                  <div>
-                                    <div className="text-xs font-medium">{professional.name}</div>
-                                    {appointment && (
-                                      <div className="text-xs text-gray-500 flex items-center mt-1">
-                                        {appointment.clientName} • {appointment.service}
+                            if (appointment) {
+                              const endTime = getAppointmentEndTime(time, appointment.duration);
+                              return (
+                                <div 
+                                  key={`${professional.id}-${time}`}
+                                  className="p-3 border-r bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-rose-500" />
+                                    <div>
+                                      <div className="text-sm font-medium">{`${time} - ${endTime}`}</div>
+                                      <div className="flex flex-col text-xs text-gray-600 mt-1">
+                                        {appointment.clientName && (
+                                          <span className="flex items-center gap-1">
+                                            <User className="h-3 w-3" />
+                                            {appointment.clientName}
+                                          </span>
+                                        )}
+                                        {appointment.service && (
+                                          <span className="flex items-center gap-1">
+                                            <Bookmark className="h-3 w-3" />
+                                            {appointment.service}
+                                          </span>
+                                        )}
                                       </div>
-                                    )}
+                                    </div>
                                   </div>
                                 </div>
-                                
-                                <div className="flex items-center">
-                                  {appointment ? (
-                                    <div className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full text-xs font-medium">
-                                      Reservado
-                                    </div>
-                                  ) : isWithinWorkingHours ? (
-                                    <div className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full text-xs font-medium">
-                                      Disponible
-                                    </div>
-                                  ) : (
-                                    <div className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-medium">
-                                      Fuera de horario
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
+                              );
+                            } else if (isAvailable) {
+                              return (
+                                <div 
+                                  key={`${professional.id}-${time}`}
+                                  className="border-r bg-white hover:bg-emerald-50 transition-colors cursor-pointer p-3"
+                                ></div>
+                              );
+                            } else {
+                              return (
+                                <div 
+                                  key={`${professional.id}-${time}`}
+                                  className="border-r bg-gray-100 p-3"
+                                ></div>
+                              );
+                            }
                           })}
                         </div>
                       </div>
