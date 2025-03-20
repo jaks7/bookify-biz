@@ -8,7 +8,9 @@ import {
   Calendar as CalendarIcon, 
   Plus,
   Save,
-  Clock
+  Clock,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +26,8 @@ import { Input } from "@/components/ui/input";
 import { TimePicker } from "@/components/calendar/TimePicker";
 import { Switch } from "@/components/ui/switch";
 import { ProfessionalAvailability, AvailabilityPattern, BusinessHours } from "@/types/availability";
+import { AvailabilityDialog } from "@/components/calendar/AvailabilityDialog";
+import { toast } from "sonner";
 
 // Mock business hours for the timeline
 const BUSINESS_HOURS: BusinessHours = {
@@ -153,21 +157,24 @@ const generateMockPatterns = () => {
   return patterns;
 };
 
-const TimeScheduleHeader: React.FC<{ weekDays: Date[], weekStart: Date }> = ({ weekDays, weekStart }) => {
+// Weekly header component showing only working days
+const TimeScheduleHeader: React.FC<{ weekDays: Date[] }> = ({ weekDays }) => {
+  // Filter to only show working days
+  const workingDays = weekDays.filter(day => isWorkingDay(day));
+  
   return (
     <div className="flex mb-4 border-b relative bg-white sticky top-0 z-10">
       {/* Left sidebar spacer - for professional name column */}
       <div className="w-48 flex-shrink-0 border-r p-2"></div>
       
       {/* Time header */}
-      <div className="flex-1 grid grid-cols-7 relative">
-        {weekDays.map((day, index) => (
+      <div className="flex-1 grid relative" style={{ 
+        gridTemplateColumns: `repeat(${workingDays.length}, 1fr)` 
+      }}>
+        {workingDays.map((day, index) => (
           <div 
             key={index} 
-            className={cn(
-              "text-center font-medium p-2",
-              !isWorkingDay(day) && "bg-gray-100 text-gray-400"
-            )}
+            className="text-center font-medium p-2 border-r last:border-r-0"
           >
             <div className="text-sm uppercase">{format(day, 'EEEE', { locale: es })}</div>
             <div className="text-lg">{format(day, 'd', { locale: es })}</div>
@@ -178,33 +185,33 @@ const TimeScheduleHeader: React.FC<{ weekDays: Date[], weekStart: Date }> = ({ w
   );
 };
 
-// Generate working hour grid for the timeline
-const TimeGrid: React.FC = () => {
-  // Generate time slots in 30 minute intervals during business hours
-  const hourLabels = [];
-  const startHour = parseInt(BUSINESS_HOURS.start.split(':')[0]);
-  const endHour = parseInt(BUSINESS_HOURS.end.split(':')[0]);
+// Time scale component showing business hours 
+const TimeScale: React.FC = () => {
+  // Generate time markers for the timeline based on business hours
+  const startMinutes = timeToMinutes(BUSINESS_HOURS.start);
+  const endMinutes = timeToMinutes(BUSINESS_HOURS.end);
   
-  for (let hour = startHour; hour <= endHour; hour++) {
-    hourLabels.push(`${hour.toString().padStart(2, '0')}:00`);
-    if (hour < endHour) {
-      hourLabels.push(`${hour.toString().padStart(2, '0')}:30`);
-    }
+  // Create hour markers every 60 minutes
+  const hourMarkers = [];
+  for (let minutes = startMinutes; minutes <= endMinutes; minutes += 60) {
+    const hours = Math.floor(minutes / 60);
+    const timeLabel = `${hours.toString().padStart(2, '0')}:00`;
+    const position = ((minutes - startMinutes) / (endMinutes - startMinutes)) * 100;
+    
+    hourMarkers.push({ time: timeLabel, position });
   }
-
+  
   return (
-    <div className="absolute inset-0 pointer-events-none">
-      <div className="flex h-full">
-        {hourLabels.map((time, index) => (
-          <div key={index} className="flex-1 border-r border-gray-200 relative">
-            {index % 2 === 0 && (
-              <div className="absolute top-0 -left-1 transform -translate-x-full text-xs text-gray-400">
-                {time}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+    <div className="h-6 relative mb-2 border-b">
+      {hourMarkers.map((marker, index) => (
+        <div 
+          key={index}
+          className="absolute text-xs text-gray-500 transform -translate-x-1/2"
+          style={{ left: `${marker.position}%` }}
+        >
+          {marker.time}
+        </div>
+      ))}
     </div>
   );
 };
@@ -215,7 +222,7 @@ interface TimelineProps {
   visibleProfessionals: string[];
   professionals: { id: string; name: string }[];
   onAvailabilityUpdate?: (updated: ProfessionalAvailability) => void;
-  onAvailabilityCreate?: (newAvail: Partial<ProfessionalAvailability>) => void;
+  onAvailabilityCreate?: (newAvail: ProfessionalAvailability) => void;
   onAvailabilityDelete?: (id: string) => void;
 }
 
@@ -228,25 +235,32 @@ const TimelineView: React.FC<TimelineProps> = ({
   onAvailabilityCreate,
   onAvailabilityDelete
 }) => {
-  // Generate business hour labels once for the entire timeline
-  const firstSlotTime = BUSINESS_HOURS.start;
-  const lastSlotTime = BUSINESS_HOURS.end;
+  // State for dialog
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentAvailability, setCurrentAvailability] = useState<ProfessionalAvailability | undefined>(undefined);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedProfessionalId, setSelectedProfessionalId] = useState<string>('');
+  const [selectedProfessionalName, setSelectedProfessionalName] = useState<string>('');
   
-  // Calculate total timeline width based on time range
-  const startMinutes = timeToMinutes(firstSlotTime);
-  const endMinutes = timeToMinutes(lastSlotTime);
+  // Calculate business hours once
+  const startMinutes = timeToMinutes(BUSINESS_HOURS.start);
+  const endMinutes = timeToMinutes(BUSINESS_HOURS.end);
   const totalMinutes = endMinutes - startMinutes;
 
-  // Generate week days
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  // Generate all days in week
+  const allWeekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  
+  // Filter to only working days
+  const weekDays = allWeekDays.filter(day => isWorkingDay(day));
 
-  // Filter availabilities for the current week
+  // Filter availabilities for current week and only working days
   const weekAvailabilities = availabilities.filter(avail => {
     const availDate = parseISO(avail.date);
     return isWithinInterval(availDate, {
       start: weekStart,
       end: addDays(weekStart, 6)
-    });
+    }) && isWorkingDay(availDate);
   });
 
   // Get visible professionals with their availabilities
@@ -259,62 +273,94 @@ const TimelineView: React.FC<TimelineProps> = ({
 
   // Calculate position and width of an availability block
   const calculatePositioning = (startTime: string, endTime: string, date: string) => {
-    const dayIndex = parseISO(date).getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const adjustedDayIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Adjust to 0 = Monday, 6 = Sunday
+    const availDate = parseISO(date);
+    // Find the index of this date in our filtered working days array
+    const dayIndex = weekDays.findIndex(day => 
+      format(day, 'yyyy-MM-dd') === format(availDate, 'yyyy-MM-dd')
+    );
     
-    const startMinutes = timeToMinutes(startTime) - timeToMinutes(firstSlotTime);
-    const endMinutes = timeToMinutes(endTime) - timeToMinutes(firstSlotTime);
-    const width = ((endMinutes - startMinutes) / totalMinutes) * 100;
-    const left = (startMinutes / totalMinutes) * 100;
+    if (dayIndex === -1) return null; // Not a working day or not in this week
+    
+    const startTimeMinutes = timeToMinutes(startTime) - startMinutes;
+    const endTimeMinutes = timeToMinutes(endTime) - startMinutes;
+    const width = ((endTimeMinutes - startTimeMinutes) / totalMinutes) * 100;
+    const left = (startTimeMinutes / totalMinutes) * 100;
     
     return {
       width: `${width}%`,
       left: `${left}%`,
-      dayIndex: adjustedDayIndex
+      dayIndex
     };
   };
 
-  // Handling click on timeline to create new availability
-  const handleTimelineClick = (professionalId: string, dayIndex: number, time: string) => {
-    const date = format(addDays(weekStart, dayIndex), 'yyyy-MM-dd');
-    const endTimeMinutes = timeToMinutes(time) + 60; // Default 1 hour
+  // Handle click on timeline to create new availability
+  const handleTimelineClick = (professionalId: string, professionalName: string, date: string, time: string) => {
+    // Calculate a default end time (1 hour after start)
+    const startTimeMinutes = timeToMinutes(time);
+    const endTimeMinutes = startTimeMinutes + 60;
     const endHours = Math.floor(endTimeMinutes / 60).toString().padStart(2, "0");
-    const endMins = (endTimeMinutes % 60).toString().padStart(2, "0");
-    const endTime = `${endHours}:${endMins}`;
+    const endMinutes = (endTimeMinutes % 60).toString().padStart(2, "0");
+    const endTime = `${endHours}:${endMinutes}`;
     
-    if (onAvailabilityCreate) {
-      onAvailabilityCreate({
-        professional: professionalId,
-        date,
-        start_time: time,
-        end_time: endTime
-      });
+    setCurrentAvailability(undefined);
+    setIsEditing(false);
+    setSelectedDate(date);
+    setSelectedProfessionalId(professionalId);
+    setSelectedProfessionalName(professionalName);
+    
+    // Initialize the new availability with the clicked time
+    const newAvailability: ProfessionalAvailability = {
+      id: '',
+      professional: professionalId,
+      professionalName: professionalName,
+      date: date,
+      start_time: time,
+      end_time: endTime
+    };
+    
+    setCurrentAvailability(newAvailability);
+    setDialogOpen(true);
+  };
+  
+  // Handle click on existing availability to edit
+  const handleAvailabilityClick = (availability: ProfessionalAvailability) => {
+    setCurrentAvailability(availability);
+    setIsEditing(true);
+    setSelectedDate(availability.date);
+    setSelectedProfessionalId(availability.professional);
+    setSelectedProfessionalName(availability.professionalName || '');
+    setDialogOpen(true);
+  };
+  
+  // Handle save of new or updated availability
+  const handleSaveAvailability = (availability: ProfessionalAvailability) => {
+    if (isEditing && onAvailabilityUpdate) {
+      onAvailabilityUpdate(availability);
+      toast.success("Disponibilidad actualizada correctamente");
+    } else if (onAvailabilityCreate) {
+      onAvailabilityCreate(availability);
+      toast.success("Disponibilidad creada correctamente");
+    }
+  };
+  
+  // Handle delete availability
+  const handleDeleteAvailability = (id: string) => {
+    if (onAvailabilityDelete) {
+      onAvailabilityDelete(id);
+      toast.success("Disponibilidad eliminada correctamente");
     }
   };
 
   return (
-    <div className="mt-6 relative">
-      <TimeScheduleHeader weekDays={weekDays} weekStart={weekStart} />
+    <div className="mt-4 relative">
+      {/* Week days header showing only business days */}
+      <TimeScheduleHeader weekDays={allWeekDays} />
       
-      {/* Time scale is common for all professionals */}
-      <div className="flex mb-2 sticky top-[60px] z-10 bg-white/80 border-b pb-1">
+      {/* Common time scale for all professionals */}
+      <div className="flex sticky top-[60px] z-10 bg-white/95 border-b pb-1">
         <div className="w-48 flex-shrink-0"></div>
-        <div className="flex-1 h-6 relative px-2">
-          {Array.from({ length: (endMinutes - startMinutes) / 60 }).map((_, index) => {
-            const hour = Math.floor(startMinutes / 60) + index;
-            return (
-              <div 
-                key={index}
-                className="absolute text-xs text-gray-500"
-                style={{ 
-                  left: `${(index * 60 / totalMinutes) * 100}%`,
-                  transform: 'translateX(-50%)'
-                }}
-              >
-                {`${hour.toString().padStart(2, '0')}:00`}
-              </div>
-            );
-          })}
+        <div className="flex-1">
+          <TimeScale />
         </div>
       </div>
 
@@ -322,84 +368,117 @@ const TimelineView: React.FC<TimelineProps> = ({
       {visibleProfessionalsData.map((prof) => (
         <div key={prof.id} className="flex mb-6">
           {/* Professional name */}
-          <div className="w-48 flex-shrink-0 p-2 text-sm font-medium">{prof.name}</div>
+          <div className="w-48 flex-shrink-0 p-2 text-sm font-medium border-r">{prof.name}</div>
           
-          {/* Timeline for the week */}
-          <div className="flex-1 grid grid-cols-7 relative">
-            {weekDays.map((day, dayIndex) => (
-              <div 
-                key={dayIndex} 
-                className={cn(
-                  "relative h-16 border-l first:border-l-0",
-                  !isWorkingDay(day) && "bg-gray-100"
-                )}
-              >
-                {isWorkingDay(day) && (
-                  <div className="absolute inset-0 bg-white" />
-                )}
-                
-                {/* Rendered availabilities for this day */}
-                {isWorkingDay(day) && prof.availabilities
-                  .filter(avail => {
-                    const availDate = parseISO(avail.date);
-                    return format(availDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
-                  })
-                  .map(avail => {
-                    const positioning = calculatePositioning(avail.start_time, avail.end_time, avail.date);
-                    
-                    return (
-                      <div 
-                        key={avail.id}
-                        className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer flex items-center justify-center"
-                        style={{ 
-                          width: positioning.width, 
-                          left: positioning.left,
-                          top: '4px',
-                          bottom: '4px',
-                          zIndex: 10
-                        }}
-                        onClick={() => {
-                          // Handle editing/deleting availability
-                          console.log("Edit availability", avail);
-                        }}
-                      >
-                        <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
-                        <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-                          {avail.start_time} - {avail.end_time}
-                        </span>
-                      </div>
-                    );
-                  })
-                }
-                
-                {/* Click handler area */}
-                {isWorkingDay(day) && (
+          {/* Timeline grid for the week - only showing business days */}
+          <div className="flex-1 grid relative" style={{ 
+            gridTemplateColumns: `repeat(${weekDays.length}, 1fr)` 
+          }}>
+            {weekDays.map((day, dayIndex) => {
+              const dateStr = format(day, 'yyyy-MM-dd');
+              
+              return (
+                <div 
+                  key={dayIndex} 
+                  className="relative h-16 border-r last:border-r-0"
+                >
+                  {/* Background div for the timeline */}
+                  <div className="absolute inset-0 bg-gray-50" />
+                  
+                  {/* Rendered availabilities for this day */}
+                  {prof.availabilities
+                    .filter(avail => format(parseISO(avail.date), 'yyyy-MM-dd') === dateStr)
+                    .map(avail => {
+                      const positioning = calculatePositioning(avail.start_time, avail.end_time, avail.date);
+                      if (!positioning) return null;
+                      
+                      return (
+                        <div 
+                          key={avail.id}
+                          className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer flex items-center justify-between group"
+                          style={{ 
+                            width: positioning.width, 
+                            left: positioning.left,
+                            top: '4px',
+                            bottom: '4px',
+                            zIndex: 10
+                          }}
+                          onClick={() => handleAvailabilityClick(avail)}
+                        >
+                          <div className="flex items-center overflow-hidden">
+                            <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
+                            <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                              {avail.start_time} - {avail.end_time}
+                            </span>
+                          </div>
+                          
+                          <div className="hidden group-hover:flex items-center">
+                            <button 
+                              className="p-1 hover:bg-blue-600 rounded-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAvailabilityClick(avail);
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </button>
+                            <button 
+                              className="p-1 hover:bg-blue-600 rounded-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAvailability(avail.id);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  }
+                  
+                  {/* Clickable area for creating new availability */}
                   <div 
                     className="absolute inset-0 cursor-pointer z-5" 
                     onClick={(e) => {
+                      // Only handle click if target is this div (not a child element)
                       if (e.currentTarget === e.target) {
-                        // Calculate time based on click position
                         const rect = e.currentTarget.getBoundingClientRect();
                         const relativeX = e.clientX - rect.left;
                         const percentX = relativeX / rect.width;
                         
+                        // Calculate time based on click position
                         const minuteOffset = totalMinutes * percentX;
                         const clickMinutes = startMinutes + minuteOffset;
                         
-                        const hours = Math.floor(clickMinutes / 60).toString().padStart(2, "0");
-                        const minutes = Math.round((clickMinutes % 60) / 30) * 30;
-                        const time = `${hours}:${minutes.toString().padStart(2, "0")}`;
+                        // Round to nearest 30-minute interval
+                        const roundedMinutes = Math.round(clickMinutes / 30) * 30;
+                        const hours = Math.floor(roundedMinutes / 60).toString().padStart(2, "0");
+                        const minutes = (roundedMinutes % 60).toString().padStart(2, "0");
+                        const time = `${hours}:${minutes}`;
                         
-                        handleTimelineClick(prof.id, dayIndex, time);
+                        handleTimelineClick(prof.id, prof.name, dateStr, time);
                       }
                     }}
                   />
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}
+      
+      {/* Dialog for creating/editing availability */}
+      <AvailabilityDialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSave={handleSaveAvailability}
+        availability={currentAvailability}
+        date={selectedDate}
+        professionalId={selectedProfessionalId}
+        professionalName={selectedProfessionalName}
+        isEditing={isEditing}
+      />
     </div>
   );
 };
@@ -804,28 +883,27 @@ const Turnos = () => {
     
     setAvailabilities([...availabilities, ...newAvailabilities]);
     setCreatePatternsOpen(false);
+    toast.success("Turnos creados correctamente");
   };
 
-  const handleCreateAvailability = (newAvail: Partial<ProfessionalAvailability>) => {
-    const professional = professionals.find(p => p.id === newAvail.professional);
-    if (!professional) return;
-    
-    const newAvailability: ProfessionalAvailability = {
-      id: `avail-${Date.now()}`,
-      professional: newAvail.professional!,
-      professionalName: professional.name,
-      date: newAvail.date!,
-      start_time: newAvail.start_time!,
-      end_time: newAvail.end_time!
-    };
-    
-    setAvailabilities([...availabilities, newAvailability]);
+  const handleCreateAvailability = (newAvail: ProfessionalAvailability) => {
+    setAvailabilities([...availabilities, newAvail]);
+  };
+  
+  const handleUpdateAvailability = (updated: ProfessionalAvailability) => {
+    setAvailabilities(availabilities.map(avail => 
+      avail.id === updated.id ? updated : avail
+    ));
+  };
+  
+  const handleDeleteAvailability = (id: string) => {
+    setAvailabilities(availabilities.filter(avail => avail.id !== id));
   };
 
   return (
     <AppSidebarWrapper>
       <div className="bg-gray-50 flex-1">
-        <div className="container px-4 py-8 mx-auto pt-20">
+        <div className="container px-4 py-8 mx-auto">
           <Tabs 
             defaultValue={activeTab} 
             value={activeTab} 
@@ -881,7 +959,6 @@ const Turnos = () => {
                         onSelect={(date) => date && setSelectedDate(date)}
                         initialFocus
                         locale={es}
-                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
@@ -940,15 +1017,15 @@ const Turnos = () => {
                   </div>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="overflow-x-auto">
                   <TimelineView 
                     availabilities={availabilities}
                     weekStart={weekStart}
                     visibleProfessionals={visibleProfessionals}
                     professionals={professionals}
                     onAvailabilityCreate={handleCreateAvailability}
-                    onAvailabilityUpdate={(updated) => console.log('Update', updated)}
-                    onAvailabilityDelete={(id) => console.log('Delete', id)}
+                    onAvailabilityUpdate={handleUpdateAvailability}
+                    onAvailabilityDelete={handleDeleteAvailability}
                   />
                 </CardContent>
               </Card>

@@ -30,3 +30,15 @@ export interface BusinessHours {
   breakEnd?: string; // "16:00" 
   daysOpen: number[]; // [1, 2, 3, 4, 5] for Monday to Friday
 }
+
+// Dialog for creating/editing slots
+export interface AvailabilityDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (availability: ProfessionalAvailability) => void;
+  availability?: ProfessionalAvailability;
+  date: string;
+  professionalId: string;
+  professionalName: string;
+  isEditing: boolean;
+}

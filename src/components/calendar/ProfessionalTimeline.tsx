@@ -6,23 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle, Clock, User, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-interface Appointment {
-  id: string;
-  time: string;
-  duration: number; // in minutes
-  clientName: string;
-  service: string;
-}
+import { Professional, Appointment } from "@/types/professional";
 
 interface ProfessionalTimelineProps {
-  professional: {
-    id: string;
-    name: string;
-    isWorking?: boolean;
-    workingHours?: { start: string; end: string }[];
-    appointments?: Appointment[];
-  };
+  professional: Professional;
   selectedDate: Date;
 }
 

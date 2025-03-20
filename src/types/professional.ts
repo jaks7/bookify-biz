@@ -5,6 +5,9 @@ export interface Professional {
   isWorking?: boolean;
   workingHours?: { start: string; end: string }[];
   appointments?: Appointment[];
+  professional_id?: string; // Added for compatibility
+  surnames?: string; // Added for compatibility
+  email?: string; // Added for compatibility
 }
 
 export interface Appointment {
