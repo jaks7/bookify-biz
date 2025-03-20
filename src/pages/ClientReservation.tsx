@@ -1,10 +1,25 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isToday } from "date-fns";
+import { 
+  format, 
+  addDays, 
+  subDays, 
+  addWeeks, 
+  subWeeks, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  isToday, 
+  isSameDay, 
+  parse
+} from "date-fns";
 import { es } from "date-fns/locale";
 import { 
   Calendar as CalendarIcon, 
   ChevronDown, 
+  ChevronLeft,
+  ChevronRight,
   Clock, 
   Filter, 
   Scissors, 
@@ -44,6 +59,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { Professional, Appointment } from "@/types/professional";
 
 // Mock data
 const services = [
@@ -54,54 +70,140 @@ const services = [
   { id: "s5", name: "Masaje facial", duration: 30, price: 20 },
 ];
 
-const professionals = [
+// Create more detailed mock data for time slots and availability
+const professionals: Professional[] = [
   {
     id: "prof1",
     name: "María García",
     isWorking: true,
-    availability: [
-      { day: "2024-04-24", slots: ["10:00", "11:00", "12:00", "17:00", "18:00"] },
-      { day: "2024-04-25", slots: ["09:00", "10:00", "12:00", "16:00"] },
-      { day: "2024-04-26", slots: ["10:00", "11:00", "12:00", "16:00", "17:00", "18:00"] },
+    workingHours: [
+      { start: "09:00", end: "14:00" },
+      { start: "16:00", end: "20:00" }
+    ],
+    appointments: [
+      { id: "apt1", time: "10:00", duration: 30, clientName: "Laura Martínez", service: "Corte de pelo" },
+      { id: "apt2", time: "12:30", duration: 30, clientName: "Carlos Ruiz", service: "Corte de pelo" },
+      { id: "apt3", time: "17:00", duration: 60, clientName: "Ana López", service: "Tinte" }
     ]
   },
   {
     id: "prof2",
     name: "Juan Pérez",
     isWorking: true,
-    availability: [
-      { day: "2024-04-24", slots: ["09:00", "12:00", "13:00", "17:00", "18:00"] },
-      { day: "2024-04-25", slots: ["09:00", "10:00", "11:00", "16:00", "18:00"] },
-      { day: "2024-04-26", slots: ["09:00", "10:00", "12:00", "16:00", "18:00"] },
+    workingHours: [
+      { start: "09:00", end: "14:00" },
+      { start: "16:00", end: "20:00" }
+    ],
+    appointments: [
+      { id: "apt4", time: "09:30", duration: 45, clientName: "Ana López", service: "Manicura" },
+      { id: "apt5", time: "16:30", duration: 60, clientName: "Pedro Sánchez", service: "Tinte" },
+      { id: "apt6", time: "18:00", duration: 30, clientName: "Lucía Torres", service: "Corte de pelo" }
     ]
   },
+  {
+    id: "prof3",
+    name: "Elena Martínez",
+    isWorking: true,
+    workingHours: [
+      { start: "09:00", end: "14:00" }
+    ],
+    appointments: [
+      { id: "apt7", time: "09:00", duration: 45, clientName: "Pablo Díaz", service: "Pedicura" },
+      { id: "apt8", time: "11:30", duration: 30, clientName: "Carmen Ruiz", service: "Corte de pelo" }
+    ]
+  }
 ];
 
+// Generate available time slots for each day
+const generateAvailableSlots = (date: Date) => {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  const baseSlots = [
+    "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", 
+    "12:00", "12:30", "13:00", "13:30", "14:00", "16:00", 
+    "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"
+  ];
+  
+  // Add random availability per professional per day
+  const dayAvailability: { [key: string]: string[] } = {};
+  
+  professionals.forEach(prof => {
+    // Randomly select slots to be available
+    const availableSlots = baseSlots.filter(() => Math.random() > 0.3);
+    dayAvailability[prof.id] = availableSlots;
+  });
+  
+  return dayAvailability;
+};
+
+// Generate month availability data for calendar display
 const generateMonthAvailability = (month: Date) => {
-  const start = startOfMonth(month);
-  const end = endOfMonth(month);
+  const start = startOfWeek(month, { weekStartsOn: 1 }); // Start from Monday
+  const end = endOfWeek(addWeeks(start, 5), { weekStartsOn: 1 }); // Show 6 weeks
   const days = eachDayOfInterval({ start, end });
   
   return days.reduce((acc, day) => {
-    // Generate random availability percentage (0-100%)
+    // Generate availability percentage
     const dateStr = format(day, 'yyyy-MM-dd');
-    const professionalAvailability = professionals.reduce((total, prof) => {
-      const dayAvail = prof.availability.find(a => a.day === dateStr);
-      return total + (dayAvail ? dayAvail.slots.length : 0);
-    }, 0);
+    const professionalAvailability = professionals.length * 8; // 8 slots per professional on average
+    const random = Math.random();
+    const reservedSlots = Math.floor(random * professionalAvailability);
+    const percentage = Math.max(0, Math.floor((professionalAvailability - reservedSlots) / professionalAvailability * 100));
     
-    const maxPossibleSlots = professionals.length * 16; // Assuming 8 hours * 2 slots per hour
-    acc[dateStr] = Math.min(100, Math.floor((professionalAvailability / maxPossibleSlots) * 100));
+    acc[dateStr] = percentage;
     return acc;
   }, {} as Record<string, number>);
+};
+
+// Find first available slot for a service
+const findFirstAvailableSlot = (serviceId: string) => {
+  // Loop through next 14 days to find first slot
+  for (let i = 0; i < 14; i++) {
+    const day = addDays(new Date(), i);
+    const dateStr = format(day, 'yyyy-MM-dd');
+    
+    // For each professional, check if they can provide this service and have slots available
+    for (const prof of professionals) {
+      // Assume all professionals can do all services for demo
+      if (prof.isWorking) {
+        // Get working hours
+        if (prof.workingHours) {
+          for (const hours of prof.workingHours) {
+            const startHour = parseInt(hours.start.split(':')[0]);
+            const endHour = parseInt(hours.end.split(':')[0]);
+            
+            // Check each half hour slot
+            for (let hour = startHour; hour < endHour; hour++) {
+              for (const minute of ['00', '30']) {
+                const timeSlot = `${hour.toString().padStart(2, '0')}:${minute}`;
+                
+                // Check if slot is not booked
+                const isBooked = prof.appointments?.some(apt => apt.time === timeSlot);
+                
+                if (!isBooked) {
+                  return {
+                    date: day,
+                    time: timeSlot,
+                    professional: prof.name
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // If no slot found, return null
+  return null;
 };
 
 const ClientReservation = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [availabilityData, setAvailabilityData] = useState(() => generateMonthAvailability(currentMonth));
+  const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
+  const [availabilityData, setAvailabilityData] = useState(() => generateMonthAvailability(new Date()));
   const [dayPeriod, setDayPeriod] = useState<string>("all");
   const [selectedService, setSelectedService] = useState<string>("");
   const [selectedSlot, setSelectedSlot] = useState<string>("");
@@ -109,6 +211,8 @@ const ClientReservation = () => {
   const [step, setStep] = useState<number>(1);
   const [isNewClient, setIsNewClient] = useState<boolean | null>(null);
   const [otpValue, setOtpValue] = useState<string>("");
+  const [firstAvailableSlots, setFirstAvailableSlots] = useState<Record<string, {date: Date, time: string, professional: string} | null>>({});
+  const [dailyAvailableSlots, setDailyAvailableSlots] = useState<{[key: string]: string[]}>({});
 
   const phoneForm = useForm<{ phone: string }>({
     resolver: zodResolver(z.object({
@@ -119,29 +223,59 @@ const ClientReservation = () => {
     }
   });
 
+  // Generate week days for the week selector
+  const weekDays = eachDayOfInterval({
+    start: startOfWeek(currentWeek, { weekStartsOn: 1 }),
+    end: endOfWeek(currentWeek, { weekStartsOn: 1 })
+  });
+
   useEffect(() => {
-    setAvailabilityData(generateMonthAvailability(currentMonth));
-  }, [currentMonth]);
+    // Calculate first available slot for each service when component mounts
+    const slots: Record<string, {date: Date, time: string, professional: string} | null> = {};
+    services.forEach(service => {
+      slots[service.id] = findFirstAvailableSlot(service.id);
+    });
+    setFirstAvailableSlots(slots);
+  }, []);
+
+  useEffect(() => {
+    // Generate available slots for the selected date
+    setDailyAvailableSlots(generateAvailableSlots(selectedDate));
+  }, [selectedDate]);
+
+  // Handle week navigation
+  const handlePrevWeek = () => {
+    setCurrentWeek(subWeeks(currentWeek, 1));
+  };
+
+  const handleNextWeek = () => {
+    setCurrentWeek(addWeeks(currentWeek, 1));
+  };
 
   // Get available slots for selected date and service
   const getAvailableSlots = () => {
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
     let slots: Array<{time: string, professional: string}> = [];
     
     professionals.forEach(pro => {
-      const dayAvail = pro.availability.find(a => a.day === dateStr);
-      if (dayAvail) {
-        dayAvail.slots.forEach(slot => {
-          if ((dayPeriod === "morning" && parseInt(slot.split(":")[0]) < 14) ||
-              (dayPeriod === "afternoon" && parseInt(slot.split(":")[0]) >= 14) ||
+      const proSlots = dailyAvailableSlots[pro.id] || [];
+      
+      proSlots.forEach(time => {
+        // Check if slot is not already booked
+        const isBooked = pro.appointments?.some(apt => apt.time === time);
+        
+        if (!isBooked) {
+          // Check day period filter
+          const hour = parseInt(time.split(':')[0]);
+          if ((dayPeriod === "morning" && hour < 14) ||
+              (dayPeriod === "afternoon" && hour >= 14) ||
               dayPeriod === "all") {
             slots.push({
-              time: slot,
+              time,
               professional: pro.id
             });
           }
-        });
-      }
+        }
+      });
     });
     
     // Sort slots by time
@@ -160,9 +294,23 @@ const ClientReservation = () => {
     return "bg-emerald-400 text-white hover:bg-emerald-500"; // Many slots
   };
 
+  const getWeekDayAvailabilityColor = (day: Date) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const availability = availabilityData[dateStr] || 0;
+    
+    if (availability === 0) return "bg-gray-200"; // No slots
+    if (availability < 25) return "bg-yellow-400"; // Very few slots
+    if (availability < 50) return "bg-green-400"; // Some slots
+    return "bg-green-600"; // Many slots
+  };
+
   const handleServiceSelect = (serviceId: string) => {
     setSelectedService(serviceId);
     setStep(2);
+  };
+
+  const handleWeekDaySelect = (day: Date) => {
+    setSelectedDate(day);
   };
 
   const handleSlotSelect = (time: string, professionalId: string) => {
@@ -250,32 +398,44 @@ const ClientReservation = () => {
             <CardTitle>Selecciona un servicio</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {services.map(service => (
-              <Card 
-                key={service.id} 
-                className={cn(
-                  "cursor-pointer hover:bg-gray-50 transition-colors",
-                  selectedService === service.id && "ring-2 ring-emerald-500"
-                )}
-                onClick={() => handleServiceSelect(service.id)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <Scissors className="h-5 w-5 text-emerald-500" />
-                      <h3 className="font-medium">{service.name}</h3>
+            {services.map(service => {
+              const firstSlot = firstAvailableSlots[service.id];
+              
+              return (
+                <Card 
+                  key={service.id} 
+                  className={cn(
+                    "cursor-pointer hover:bg-gray-50 transition-colors",
+                    selectedService === service.id && "ring-2 ring-emerald-500"
+                  )}
+                  onClick={() => handleServiceSelect(service.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <Scissors className="h-5 w-5 text-emerald-500" />
+                        <h3 className="font-medium">{service.name}</h3>
+                      </div>
+                      <div className="text-sm text-gray-500 flex justify-between">
+                        <span className="flex items-center">
+                          <Clock className="h-4 w-4 mr-1" />
+                          {service.duration} min
+                        </span>
+                        <span>{service.price} €</span>
+                      </div>
+                      
+                      {firstSlot && (
+                        <div className="mt-2 text-xs border-t pt-2">
+                          <p className="font-medium text-emerald-600">Primera cita disponible:</p>
+                          <p>{format(firstSlot.date, "EEEE d 'de' MMMM", { locale: es })}</p>
+                          <p>{firstSlot.time} ({firstSlot.professional})</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-sm text-gray-500 flex justify-between">
-                      <span className="flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
-                        {service.duration} min
-                      </span>
-                      <span>{service.price} €</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -288,6 +448,47 @@ const ClientReservation = () => {
           <CardContent>
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
+                {/* Week day selector */}
+                <div className="rounded-md border mb-4">
+                  <div className="bg-gray-50 border-b p-3 flex justify-between items-center">
+                    <h3 className="font-medium">Marzo 2025</h3>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="icon" onClick={handlePrevWeek}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={handleNextWeek}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-7 p-2 gap-2">
+                    {weekDays.map((day) => {
+                      const isSelected = isSameDay(day, selectedDate);
+                      const dayNumber = format(day, 'd');
+                      const dayName = format(day, 'EEE', { locale: es });
+                      const bgColor = getWeekDayAvailabilityColor(day);
+                      
+                      return (
+                        <Button
+                          key={day.toString()}
+                          variant="outline"
+                          className={cn(
+                            "h-auto py-3 px-1 flex flex-col items-center justify-center border",
+                            isSelected && "ring-2 ring-emerald-500",
+                            isToday(day) && "bg-emerald-50"
+                          )}
+                          onClick={() => handleWeekDaySelect(day)}
+                        >
+                          <span className="text-xs uppercase">{dayName}.</span>
+                          <span className="text-lg font-medium">{dayNumber}</span>
+                          <div className={cn("w-10 h-1.5 mt-1 rounded-full", bgColor)}></div>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+                
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button

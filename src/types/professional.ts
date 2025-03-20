@@ -1,19 +1,16 @@
 
 export interface Professional {
   id: string;
-  professional_id?: string;
   name: string;
-  surnames?: string;
-  email?: string;
-  phone?: string;
-  business?: string;
-  isWorking?: boolean;
+  isWorking: boolean; // Make this required
   workingHours?: { start: string; end: string }[];
-  appointments?: Array<{
-    id: string;
-    time: string;
-    duration: number;
-    clientName: string;
-    service: string;
-  }>;
-} 
+  appointments?: Appointment[];
+}
+
+export interface Appointment {
+  id: string;
+  time: string;
+  duration: number;
+  clientName?: string;
+  service?: string;
+}
