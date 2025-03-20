@@ -1,17 +1,14 @@
 
 import React, { useState, useEffect } from "react";
-import { format, addDays, subDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval } from "date-fns";
+import { format, addDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
   ArrowLeft, 
   ArrowRight, 
   Calendar as CalendarIcon, 
-  Plus, 
-  List,
-  PlusCircle,
-  Eye,
-  EyeOff,
-  Save
+  Plus,
+  Save,
+  Clock
 } from "lucide-react";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,17 +23,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { TimePicker } from "@/components/calendar/TimePicker";
 import { Switch } from "@/components/ui/switch";
+import { ProfessionalAvailability, AvailabilityPattern, BusinessHours } from "@/types/availability";
 
-// This is a demo version that uses the same code as the main Turnos page
-// We're reusing the exact same code for demonstration purposes
+// Mock business hours for the timeline
+const BUSINESS_HOURS: BusinessHours = {
+  start: "09:00",
+  end: "20:00",
+  breakStart: "14:00",
+  breakEnd: "16:00",
+  daysOpen: [1, 2, 3, 4, 5, 6], // Monday to Saturday
+};
 
-// Import the main components from the regular Turnos page
-// Since this is a demo, we'll use the same mock data and functionality
+// Convert time string to minutes for positioning
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+// Helper to check if a date is a working day
+const isWorkingDay = (date: Date) => {
+  const day = date.getDay();
+  return BUSINESS_HOURS.daysOpen.includes(day);
+};
 
 // Mock data for professional slots
 const generateMockAvailability = () => {
   const currentDate = new Date();
-  const availabilities = [];
+  const availabilities: ProfessionalAvailability[] = [];
   const professionals = [
     { id: "prof1", name: "María García" },
     { id: "prof2", name: "Juan Pérez" },
@@ -47,9 +60,9 @@ const generateMockAvailability = () => {
   for (let i = 0; i < 14; i++) {
     const date = format(addDays(currentDate, i), 'yyyy-MM-dd');
     
-    // Skip weekends (Saturday and Sunday)
+    // Skip days when business is closed
     const dayOfWeek = addDays(currentDate, i).getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+    if (!BUSINESS_HOURS.daysOpen.includes(dayOfWeek)) continue;
     
     // Generate different availabilities for each professional
     professionals.forEach((professional) => {
@@ -102,7 +115,7 @@ const generateMockAvailability = () => {
 
 // Mock data for availability patterns
 const generateMockPatterns = () => {
-  const patterns = [
+  const patterns: AvailabilityPattern[] = [
     {
       id: "pattern1",
       professional: "prof1",
@@ -140,42 +153,73 @@ const generateMockPatterns = () => {
   return patterns;
 };
 
-// Mock business hours for the timeline
-const BUSINESS_HOURS = {
-  start: "09:00",
-  end: "20:00",
-  breakStart: "14:00",
-  breakEnd: "16:00",
-  daysOpen: [1, 2, 3, 4, 5], // Monday to Friday
+const TimeScheduleHeader: React.FC<{ weekDays: Date[], weekStart: Date }> = ({ weekDays, weekStart }) => {
+  return (
+    <div className="flex mb-4 border-b relative bg-white sticky top-0 z-10">
+      {/* Left sidebar spacer - for professional name column */}
+      <div className="w-48 flex-shrink-0 border-r p-2"></div>
+      
+      {/* Time header */}
+      <div className="flex-1 grid grid-cols-7 relative">
+        {weekDays.map((day, index) => (
+          <div 
+            key={index} 
+            className={cn(
+              "text-center font-medium p-2",
+              !isWorkingDay(day) && "bg-gray-100 text-gray-400"
+            )}
+          >
+            <div className="text-sm uppercase">{format(day, 'EEEE', { locale: es })}</div>
+            <div className="text-lg">{format(day, 'd', { locale: es })}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-// Convert time string to minutes for positioning
-const timeToMinutes = (time) => {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-};
-
-// Helper to check if a date is a working day
-const isWorkingDay = (date) => {
-  const day = date.getDay();
-  return BUSINESS_HOURS.daysOpen.includes(day);
-};
-
-// Generate time slots for the timeline
-const generateTimeSlots = () => {
-  const slots = [];
-  const start = timeToMinutes(BUSINESS_HOURS.start);
-  const end = timeToMinutes(BUSINESS_HOURS.end);
-  // Create slots every 30 minutes
-  for (let time = start; time <= end; time += 30) {
-    const hours = Math.floor(time / 60).toString().padStart(2, "0");
-    const mins = (time % 60).toString().padStart(2, "0");
-    slots.push(`${hours}:${mins}`);
+// Generate working hour grid for the timeline
+const TimeGrid: React.FC = () => {
+  // Generate time slots in 30 minute intervals during business hours
+  const hourLabels = [];
+  const startHour = parseInt(BUSINESS_HOURS.start.split(':')[0]);
+  const endHour = parseInt(BUSINESS_HOURS.end.split(':')[0]);
+  
+  for (let hour = startHour; hour <= endHour; hour++) {
+    hourLabels.push(`${hour.toString().padStart(2, '0')}:00`);
+    if (hour < endHour) {
+      hourLabels.push(`${hour.toString().padStart(2, '0')}:30`);
+    }
   }
-  return slots;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      <div className="flex h-full">
+        {hourLabels.map((time, index) => (
+          <div key={index} className="flex-1 border-r border-gray-200 relative">
+            {index % 2 === 0 && (
+              <div className="absolute top-0 -left-1 transform -translate-x-full text-xs text-gray-400">
+                {time}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-const TimelineView = ({ 
+interface TimelineProps {
+  availabilities: ProfessionalAvailability[];
+  weekStart: Date;
+  visibleProfessionals: string[];
+  professionals: { id: string; name: string }[];
+  onAvailabilityUpdate?: (updated: ProfessionalAvailability) => void;
+  onAvailabilityCreate?: (newAvail: Partial<ProfessionalAvailability>) => void;
+  onAvailabilityDelete?: (id: string) => void;
+}
+
+const TimelineView: React.FC<TimelineProps> = ({ 
   availabilities, 
   weekStart, 
   visibleProfessionals,
@@ -184,9 +228,9 @@ const TimelineView = ({
   onAvailabilityCreate,
   onAvailabilityDelete
 }) => {
-  const timeSlots = generateTimeSlots();
-  const firstSlotTime = timeSlots[0];
-  const lastSlotTime = timeSlots[timeSlots.length - 1];
+  // Generate business hour labels once for the entire timeline
+  const firstSlotTime = BUSINESS_HOURS.start;
+  const lastSlotTime = BUSINESS_HOURS.end;
   
   // Calculate total timeline width based on time range
   const startMinutes = timeToMinutes(firstSlotTime);
@@ -214,7 +258,7 @@ const TimelineView = ({
     }));
 
   // Calculate position and width of an availability block
-  const calculatePositioning = (startTime, endTime, date) => {
+  const calculatePositioning = (startTime: string, endTime: string, date: string) => {
     const dayIndex = parseISO(date).getDay(); // 0 = Sunday, 1 = Monday, etc.
     const adjustedDayIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Adjust to 0 = Monday, 6 = Sunday
     
@@ -231,7 +275,7 @@ const TimelineView = ({
   };
 
   // Handling click on timeline to create new availability
-  const handleTimelineClick = (professionalId, dayIndex, time) => {
+  const handleTimelineClick = (professionalId: string, dayIndex: number, time: string) => {
     const date = format(addDays(weekStart, dayIndex), 'yyyy-MM-dd');
     const endTimeMinutes = timeToMinutes(time) + 60; // Default 1 hour
     const endHours = Math.floor(endTimeMinutes / 60).toString().padStart(2, "0");
@@ -249,59 +293,51 @@ const TimelineView = ({
   };
 
   return (
-    <div className="mt-6 overflow-auto">
-      {/* Days header */}
-      <div className="grid grid-cols-7 mb-2 sticky top-0 z-10 bg-white">
-        {weekDays.map((day, index) => (
-          <div 
-            key={index} 
-            className={cn(
-              "p-2 text-center font-medium border-b",
-              !isWorkingDay(day) && "bg-gray-100"
-            )}
-          >
-            <div className="text-sm uppercase">{format(day, 'EEEE', { locale: es })}</div>
-            <div className="text-lg">{format(day, 'd', { locale: es })}</div>
-          </div>
-        ))}
+    <div className="mt-6 relative">
+      <TimeScheduleHeader weekDays={weekDays} weekStart={weekStart} />
+      
+      {/* Time scale is common for all professionals */}
+      <div className="flex mb-2 sticky top-[60px] z-10 bg-white/80 border-b pb-1">
+        <div className="w-48 flex-shrink-0"></div>
+        <div className="flex-1 h-6 relative px-2">
+          {Array.from({ length: (endMinutes - startMinutes) / 60 }).map((_, index) => {
+            const hour = Math.floor(startMinutes / 60) + index;
+            return (
+              <div 
+                key={index}
+                className="absolute text-xs text-gray-500"
+                style={{ 
+                  left: `${(index * 60 / totalMinutes) * 100}%`,
+                  transform: 'translateX(-50%)'
+                }}
+              >
+                {`${hour.toString().padStart(2, '0')}:00`}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Timeline for each professional */}
       {visibleProfessionalsData.map((prof) => (
-        <div key={prof.id} className="mb-6">
-          <div className="font-medium mb-1 px-2">{prof.name}</div>
+        <div key={prof.id} className="flex mb-6">
+          {/* Professional name */}
+          <div className="w-48 flex-shrink-0 p-2 text-sm font-medium">{prof.name}</div>
           
-          <div className="grid grid-cols-7 h-24 relative">
-            {/* Day cells */}
+          {/* Timeline for the week */}
+          <div className="flex-1 grid grid-cols-7 relative">
             {weekDays.map((day, dayIndex) => (
               <div 
                 key={dayIndex} 
                 className={cn(
-                  "border relative",
+                  "relative h-16 border-l first:border-l-0",
                   !isWorkingDay(day) && "bg-gray-100"
                 )}
               >
-                {/* Time guides */}
-                <div className="absolute inset-0 flex">
-                  {timeSlots.map((time, index) => (
-                    <div 
-                      key={index}
-                      className="border-r border-gray-200 h-full"
-                      style={{ 
-                        width: `${100 / timeSlots.length}%`,
-                        marginLeft: index === 0 ? 0 : '',
-                      }}
-                      onClick={() => isWorkingDay(day) && handleTimelineClick(prof.id, dayIndex, time)}
-                    >
-                      {index % 2 === 0 && (
-                        <div className="text-xs text-gray-500 absolute bottom-0 -translate-x-1/2">
-                          {time}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
+                {isWorkingDay(day) && (
+                  <div className="absolute inset-0 bg-white" />
+                )}
+                
                 {/* Rendered availabilities for this day */}
                 {isWorkingDay(day) && prof.availabilities
                   .filter(avail => {
@@ -310,28 +346,55 @@ const TimelineView = ({
                   })
                   .map(avail => {
                     const positioning = calculatePositioning(avail.start_time, avail.end_time, avail.date);
-                    if (positioning.dayIndex !== dayIndex) return null;
                     
                     return (
                       <div 
                         key={avail.id}
-                        className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer"
+                        className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer flex items-center justify-center"
                         style={{ 
                           width: positioning.width, 
                           left: positioning.left,
                           top: '4px',
-                          bottom: '4px'
+                          bottom: '4px',
+                          zIndex: 10
                         }}
                         onClick={() => {
                           // Handle editing/deleting availability
                           console.log("Edit availability", avail);
                         }}
                       >
-                        {avail.start_time} - {avail.end_time}
+                        <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                          {avail.start_time} - {avail.end_time}
+                        </span>
                       </div>
                     );
                   })
                 }
+                
+                {/* Click handler area */}
+                {isWorkingDay(day) && (
+                  <div 
+                    className="absolute inset-0 cursor-pointer z-5" 
+                    onClick={(e) => {
+                      if (e.currentTarget === e.target) {
+                        // Calculate time based on click position
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const relativeX = e.clientX - rect.left;
+                        const percentX = relativeX / rect.width;
+                        
+                        const minuteOffset = totalMinutes * percentX;
+                        const clickMinutes = startMinutes + minuteOffset;
+                        
+                        const hours = Math.floor(clickMinutes / 60).toString().padStart(2, "0");
+                        const minutes = Math.round((clickMinutes % 60) / 30) * 30;
+                        const time = `${hours}:${minutes.toString().padStart(2, "0")}`;
+                        
+                        handleTimelineClick(prof.id, dayIndex, time);
+                      }
+                    }}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -342,12 +405,12 @@ const TimelineView = ({
 };
 
 // Create Slots from Pattern Dialog
-const CreateFromPatternDialog = ({
-  patterns,
-  onCreateSlots
-}) => {
-  const [selectedPattern, setSelectedPattern] = useState(null);
-  const [dateRange, setDateRange] = useState({
+const CreateFromPatternDialog: React.FC<{
+  patterns: AvailabilityPattern[];
+  onCreateSlots: (patternId: string, dateRange: { from: Date, to: Date }) => void;
+}> = ({ patterns, onCreateSlots }) => {
+  const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | { from: Date; to?: Date } | undefined>({
     from: new Date(),
     to: addDays(new Date(), 14),
   });
@@ -387,7 +450,7 @@ const CreateFromPatternDialog = ({
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start text-left">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
+                {dateRange?.from ? (
                   format(dateRange.from, "PPP", { locale: es })
                 ) : (
                   <span>Selecciona fecha</span>
@@ -397,8 +460,8 @@ const CreateFromPatternDialog = ({
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={dateRange.from}
-                onSelect={(date) => date && setDateRange({ ...dateRange, from: date })}
+                selected={dateRange?.from}
+                onSelect={(date) => date && setDateRange({ from: date, to: dateRange?.to })}
                 initialFocus
                 locale={es}
                 className="pointer-events-auto"
@@ -413,7 +476,7 @@ const CreateFromPatternDialog = ({
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start text-left">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.to ? (
+                {dateRange?.to ? (
                   format(dateRange.to, "PPP", { locale: es })
                 ) : (
                   <span>Selecciona fecha</span>
@@ -423,8 +486,8 @@ const CreateFromPatternDialog = ({
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={dateRange.to}
-                onSelect={(date) => date && setDateRange({ ...dateRange, to: date })}
+                selected={dateRange?.to}
+                onSelect={(date) => date && setDateRange({ from: dateRange?.from || new Date(), to: date })}
                 initialFocus
                 locale={es}
                 className="pointer-events-auto"
@@ -436,10 +499,10 @@ const CreateFromPatternDialog = ({
 
       <div className="flex justify-end pt-4">
         <Button 
-          disabled={!selectedPattern || !dateRange.from || !dateRange.to}
+          disabled={!selectedPattern || !dateRange?.from || !dateRange?.to}
           onClick={() => {
-            if (selectedPattern && dateRange.from && dateRange.to) {
-              onCreateSlots(selectedPattern, dateRange);
+            if (selectedPattern && dateRange?.from && dateRange?.to) {
+              onCreateSlots(selectedPattern, { from: dateRange.from, to: dateRange.to });
             }
           }}
         >
@@ -451,19 +514,19 @@ const CreateFromPatternDialog = ({
 };
 
 // Pattern Form Component
-const PatternForm = ({
-  pattern,
-  professionals,
-  onSave
-}) => {
+const PatternForm: React.FC<{
+  pattern?: AvailabilityPattern;
+  professionals: { id: string; name: string }[];
+  onSave: (pattern: Partial<AvailabilityPattern>) => void;
+}> = ({ pattern, professionals, onSave }) => {
   const [name, setName] = useState(pattern?.name || "");
-  const [selectedProfessional, setSelectedProfessional] = useState(pattern?.professional || null);
-  const [startDate, setStartDate] = useState(pattern?.start_date ? parseISO(pattern.start_date) : new Date());
-  const [endDate, setEndDate] = useState(pattern?.end_date ? parseISO(pattern.end_date) : addDays(new Date(), 30));
+  const [selectedProfessional, setSelectedProfessional] = useState<string | null>(pattern?.professional || null);
+  const [startDate, setStartDate] = useState<Date | undefined>(pattern?.start_date ? parseISO(pattern.start_date) : new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(pattern?.end_date ? parseISO(pattern.end_date) : addDays(new Date(), 30));
   const [startTime, setStartTime] = useState(pattern?.start_time || "09:00");
   const [endTime, setEndTime] = useState(pattern?.end_time || "18:00");
   
-  const [daysOfWeek, setDaysOfWeek] = useState({
+  const [daysOfWeek, setDaysOfWeek] = useState<{ [key: number]: boolean }>({
     1: pattern?.days_of_week?.[0] === "1" || true, // Monday
     2: pattern?.days_of_week?.[1] === "1" || true, // Tuesday
     3: pattern?.days_of_week?.[2] === "1" || true, // Wednesday
@@ -629,16 +692,16 @@ const PatternForm = ({
   );
 };
 
-// Main Turnos component for demo
+// Main Demo Turnos component
 const DemoTurnos = () => {
   const [activeTab, setActiveTab] = useState("turnos");
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [availabilities, setAvailabilities] = useState(generateMockAvailability());
-  const [patterns, setPatterns] = useState(generateMockPatterns());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [availabilities, setAvailabilities] = useState<ProfessionalAvailability[]>(generateMockAvailability());
+  const [patterns, setPatterns] = useState<AvailabilityPattern[]>(generateMockPatterns());
   const [createPatternsOpen, setCreatePatternsOpen] = useState(false);
   const [createPatternOpen, setCreatePatternOpen] = useState(false);
-  const [editPatternId, setEditPatternId] = useState(null);
+  const [editPatternId, setEditPatternId] = useState<string | null>(null);
   
   // Mock professionals data
   const professionals = [
@@ -647,7 +710,7 @@ const DemoTurnos = () => {
     { id: "prof3", name: "Sofia Rodríguez" }
   ];
   
-  const [visibleProfessionals, setVisibleProfessionals] = useState(
+  const [visibleProfessionals, setVisibleProfessionals] = useState<string[]>(
     professionals.map(p => p.id)
   );
 
@@ -667,7 +730,7 @@ const DemoTurnos = () => {
     setSelectedDate(addWeeks(selectedDate, 1));
   };
 
-  const toggleProfessionalVisibility = (id) => {
+  const toggleProfessionalVisibility = (id: string) => {
     if (visibleProfessionals.includes(id)) {
       setVisibleProfessionals(visibleProfessionals.filter(p => p !== id));
     } else {
@@ -675,15 +738,15 @@ const DemoTurnos = () => {
     }
   };
 
-  const handleSavePattern = (patternData) => {
+  const handleSavePattern = (patternData: Partial<AvailabilityPattern>) => {
     if (patternData.id) {
       // Update existing pattern
       setPatterns(patterns.map(p => 
-        p.id === patternData.id ? { ...p, ...patternData } : p
+        p.id === patternData.id ? { ...p, ...patternData } as AvailabilityPattern : p
       ));
     } else {
       // Create new pattern
-      const newPattern = {
+      const newPattern: AvailabilityPattern = {
         id: `pattern-${Date.now()}`,
         professional: patternData.professional || null,
         professionalName: patternData.professional 
@@ -702,15 +765,15 @@ const DemoTurnos = () => {
     setEditPatternId(null);
   };
 
-  const handleDeletePattern = (id) => {
+  const handleDeletePattern = (id: string) => {
     setPatterns(patterns.filter(p => p.id !== id));
   };
 
-  const handleCreateSlotsFromPattern = (patternId, dateRange) => {
+  const handleCreateSlotsFromPattern = (patternId: string, dateRange: { from: Date, to: Date }) => {
     const pattern = patterns.find(p => p.id === patternId);
     if (!pattern) return;
     
-    const newAvailabilities = [];
+    const newAvailabilities: ProfessionalAvailability[] = [];
     const currentDate = new Date(dateRange.from);
     
     while (currentDate <= dateRange.to) {
@@ -743,17 +806,17 @@ const DemoTurnos = () => {
     setCreatePatternsOpen(false);
   };
 
-  const handleCreateAvailability = (newAvail) => {
+  const handleCreateAvailability = (newAvail: Partial<ProfessionalAvailability>) => {
     const professional = professionals.find(p => p.id === newAvail.professional);
     if (!professional) return;
     
-    const newAvailability = {
+    const newAvailability: ProfessionalAvailability = {
       id: `avail-${Date.now()}`,
-      professional: newAvail.professional,
+      professional: newAvail.professional!,
       professionalName: professional.name,
-      date: newAvail.date,
-      start_time: newAvail.start_time,
-      end_time: newAvail.end_time
+      date: newAvail.date!,
+      start_time: newAvail.start_time!,
+      end_time: newAvail.end_time!
     };
     
     setAvailabilities([...availabilities, newAvailability]);
@@ -840,6 +903,7 @@ const DemoTurnos = () => {
                       <DialogTitle>Crear nueva plantilla</DialogTitle>
                     </DialogHeader>
                     <PatternForm 
+                      pattern={undefined}
                       professionals={professionals}
                       onSave={handleSavePattern}
                     />
@@ -884,6 +948,8 @@ const DemoTurnos = () => {
                     visibleProfessionals={visibleProfessionals}
                     professionals={professionals}
                     onAvailabilityCreate={handleCreateAvailability}
+                    onAvailabilityUpdate={(updated) => console.log('Update', updated)}
+                    onAvailabilityDelete={(id) => console.log('Delete', id)}
                   />
                 </CardContent>
               </Card>

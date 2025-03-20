@@ -19,9 +19,9 @@ interface ProfessionalTimelineProps {
   professional: {
     id: string;
     name: string;
-    isWorking: boolean;
-    workingHours: { start: string; end: string }[];
-    appointments: Appointment[];
+    isWorking?: boolean;
+    workingHours?: { start: string; end: string }[];
+    appointments?: Appointment[];
   };
   selectedDate: Date;
 }
@@ -30,7 +30,7 @@ export const ProfessionalTimeline: React.FC<ProfessionalTimelineProps> = ({
   professional,
   selectedDate,
 }) => {
-  if (!professional.isWorking) return null;
+  if (professional.isWorking === false) return null;
 
   // Generate time slots from 9:00 to 19:00 with 30 minute intervals
   const generateTimeSlots = () => {
@@ -40,7 +40,7 @@ export const ProfessionalTimeline: React.FC<ProfessionalTimelineProps> = ({
     for (const hour of hours) {
       for (const minute of ["00", "30"]) {
         const time = `${hour}:${minute}`;
-        const appointment = professional.appointments.find(
+        const appointment = professional.appointments?.find(
           (apt) => apt.time === time
         );
         
@@ -60,6 +60,7 @@ export const ProfessionalTimeline: React.FC<ProfessionalTimelineProps> = ({
   
   // Check if the given time is within working hours
   const isWithinWorkingHours = (timeString: string) => {
+    if (!professional.workingHours) return false;
     return professional.workingHours.some(({ start, end }) => {
       return timeString >= start && timeString <= end;
     });

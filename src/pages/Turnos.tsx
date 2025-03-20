@@ -1,17 +1,14 @@
 
 import React, { useState, useEffect } from "react";
-import { format, addDays, subDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval } from "date-fns";
+import { format, addDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
   ArrowLeft, 
   ArrowRight, 
   Calendar as CalendarIcon, 
-  Plus, 
-  List,
-  PlusCircle,
-  Eye,
-  EyeOff,
-  Save
+  Plus,
+  Save,
+  Clock
 } from "lucide-react";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,11 +19,32 @@ import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ProfessionalAvailability, AvailabilityPattern } from "@/types/availability";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { TimePicker } from "@/components/calendar/TimePicker";
 import { Switch } from "@/components/ui/switch";
+import { ProfessionalAvailability, AvailabilityPattern, BusinessHours } from "@/types/availability";
+
+// Mock business hours for the timeline
+const BUSINESS_HOURS: BusinessHours = {
+  start: "09:00",
+  end: "20:00",
+  breakStart: "14:00",
+  breakEnd: "16:00",
+  daysOpen: [1, 2, 3, 4, 5, 6], // Monday to Saturday
+};
+
+// Convert time string to minutes for positioning
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+// Helper to check if a date is a working day
+const isWorkingDay = (date: Date) => {
+  const day = date.getDay();
+  return BUSINESS_HOURS.daysOpen.includes(day);
+};
 
 // Mock data for professional slots
 const generateMockAvailability = () => {
@@ -42,9 +60,9 @@ const generateMockAvailability = () => {
   for (let i = 0; i < 14; i++) {
     const date = format(addDays(currentDate, i), 'yyyy-MM-dd');
     
-    // Skip weekends (Saturday and Sunday)
+    // Skip days when business is closed
     const dayOfWeek = addDays(currentDate, i).getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+    if (!BUSINESS_HOURS.daysOpen.includes(dayOfWeek)) continue;
     
     // Generate different availabilities for each professional
     professionals.forEach((professional) => {
@@ -135,39 +153,60 @@ const generateMockPatterns = () => {
   return patterns;
 };
 
-// Mock business hours for the timeline
-const BUSINESS_HOURS = {
-  start: "09:00",
-  end: "20:00",
-  breakStart: "14:00",
-  breakEnd: "16:00",
-  daysOpen: [1, 2, 3, 4, 5], // Monday to Friday
+const TimeScheduleHeader: React.FC<{ weekDays: Date[], weekStart: Date }> = ({ weekDays, weekStart }) => {
+  return (
+    <div className="flex mb-4 border-b relative bg-white sticky top-0 z-10">
+      {/* Left sidebar spacer - for professional name column */}
+      <div className="w-48 flex-shrink-0 border-r p-2"></div>
+      
+      {/* Time header */}
+      <div className="flex-1 grid grid-cols-7 relative">
+        {weekDays.map((day, index) => (
+          <div 
+            key={index} 
+            className={cn(
+              "text-center font-medium p-2",
+              !isWorkingDay(day) && "bg-gray-100 text-gray-400"
+            )}
+          >
+            <div className="text-sm uppercase">{format(day, 'EEEE', { locale: es })}</div>
+            <div className="text-lg">{format(day, 'd', { locale: es })}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-// Convert time string to minutes for positioning
-const timeToMinutes = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-};
-
-// Helper to check if a date is a working day
-const isWorkingDay = (date: Date) => {
-  const day = date.getDay();
-  return BUSINESS_HOURS.daysOpen.includes(day);
-};
-
-// Generate time slots for the timeline
-const generateTimeSlots = () => {
-  const slots = [];
-  const start = timeToMinutes(BUSINESS_HOURS.start);
-  const end = timeToMinutes(BUSINESS_HOURS.end);
-  // Create slots every 30 minutes
-  for (let time = start; time <= end; time += 30) {
-    const hours = Math.floor(time / 60).toString().padStart(2, "0");
-    const mins = (time % 60).toString().padStart(2, "0");
-    slots.push(`${hours}:${mins}`);
+// Generate working hour grid for the timeline
+const TimeGrid: React.FC = () => {
+  // Generate time slots in 30 minute intervals during business hours
+  const hourLabels = [];
+  const startHour = parseInt(BUSINESS_HOURS.start.split(':')[0]);
+  const endHour = parseInt(BUSINESS_HOURS.end.split(':')[0]);
+  
+  for (let hour = startHour; hour <= endHour; hour++) {
+    hourLabels.push(`${hour.toString().padStart(2, '0')}:00`);
+    if (hour < endHour) {
+      hourLabels.push(`${hour.toString().padStart(2, '0')}:30`);
+    }
   }
-  return slots;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      <div className="flex h-full">
+        {hourLabels.map((time, index) => (
+          <div key={index} className="flex-1 border-r border-gray-200 relative">
+            {index % 2 === 0 && (
+              <div className="absolute top-0 -left-1 transform -translate-x-full text-xs text-gray-400">
+                {time}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 interface TimelineProps {
@@ -189,9 +228,9 @@ const TimelineView: React.FC<TimelineProps> = ({
   onAvailabilityCreate,
   onAvailabilityDelete
 }) => {
-  const timeSlots = generateTimeSlots();
-  const firstSlotTime = timeSlots[0];
-  const lastSlotTime = timeSlots[timeSlots.length - 1];
+  // Generate business hour labels once for the entire timeline
+  const firstSlotTime = BUSINESS_HOURS.start;
+  const lastSlotTime = BUSINESS_HOURS.end;
   
   // Calculate total timeline width based on time range
   const startMinutes = timeToMinutes(firstSlotTime);
@@ -254,59 +293,51 @@ const TimelineView: React.FC<TimelineProps> = ({
   };
 
   return (
-    <div className="mt-6 overflow-auto">
-      {/* Days header */}
-      <div className="grid grid-cols-7 mb-2 sticky top-0 z-10 bg-white">
-        {weekDays.map((day, index) => (
-          <div 
-            key={index} 
-            className={cn(
-              "p-2 text-center font-medium border-b",
-              !isWorkingDay(day) && "bg-gray-100"
-            )}
-          >
-            <div className="text-sm uppercase">{format(day, 'EEEE', { locale: es })}</div>
-            <div className="text-lg">{format(day, 'd', { locale: es })}</div>
-          </div>
-        ))}
+    <div className="mt-6 relative">
+      <TimeScheduleHeader weekDays={weekDays} weekStart={weekStart} />
+      
+      {/* Time scale is common for all professionals */}
+      <div className="flex mb-2 sticky top-[60px] z-10 bg-white/80 border-b pb-1">
+        <div className="w-48 flex-shrink-0"></div>
+        <div className="flex-1 h-6 relative px-2">
+          {Array.from({ length: (endMinutes - startMinutes) / 60 }).map((_, index) => {
+            const hour = Math.floor(startMinutes / 60) + index;
+            return (
+              <div 
+                key={index}
+                className="absolute text-xs text-gray-500"
+                style={{ 
+                  left: `${(index * 60 / totalMinutes) * 100}%`,
+                  transform: 'translateX(-50%)'
+                }}
+              >
+                {`${hour.toString().padStart(2, '0')}:00`}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Timeline for each professional */}
       {visibleProfessionalsData.map((prof) => (
-        <div key={prof.id} className="mb-6">
-          <div className="font-medium mb-1 px-2">{prof.name}</div>
+        <div key={prof.id} className="flex mb-6">
+          {/* Professional name */}
+          <div className="w-48 flex-shrink-0 p-2 text-sm font-medium">{prof.name}</div>
           
-          <div className="grid grid-cols-7 h-24 relative">
-            {/* Day cells */}
+          {/* Timeline for the week */}
+          <div className="flex-1 grid grid-cols-7 relative">
             {weekDays.map((day, dayIndex) => (
               <div 
                 key={dayIndex} 
                 className={cn(
-                  "border relative",
+                  "relative h-16 border-l first:border-l-0",
                   !isWorkingDay(day) && "bg-gray-100"
                 )}
               >
-                {/* Time guides */}
-                <div className="absolute inset-0 flex">
-                  {timeSlots.map((time, index) => (
-                    <div 
-                      key={index}
-                      className="border-r border-gray-200 h-full"
-                      style={{ 
-                        width: `${100 / timeSlots.length}%`,
-                        marginLeft: index === 0 ? 0 : '',
-                      }}
-                      onClick={() => isWorkingDay(day) && handleTimelineClick(prof.id, dayIndex, time)}
-                    >
-                      {index % 2 === 0 && (
-                        <div className="text-xs text-gray-500 absolute bottom-0 -translate-x-1/2">
-                          {time}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
+                {isWorkingDay(day) && (
+                  <div className="absolute inset-0 bg-white" />
+                )}
+                
                 {/* Rendered availabilities for this day */}
                 {isWorkingDay(day) && prof.availabilities
                   .filter(avail => {
@@ -315,28 +346,55 @@ const TimelineView: React.FC<TimelineProps> = ({
                   })
                   .map(avail => {
                     const positioning = calculatePositioning(avail.start_time, avail.end_time, avail.date);
-                    if (positioning.dayIndex !== dayIndex) return null;
                     
                     return (
                       <div 
                         key={avail.id}
-                        className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer"
+                        className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer flex items-center justify-center"
                         style={{ 
                           width: positioning.width, 
                           left: positioning.left,
                           top: '4px',
-                          bottom: '4px'
+                          bottom: '4px',
+                          zIndex: 10
                         }}
                         onClick={() => {
                           // Handle editing/deleting availability
                           console.log("Edit availability", avail);
                         }}
                       >
-                        {avail.start_time} - {avail.end_time}
+                        <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                          {avail.start_time} - {avail.end_time}
+                        </span>
                       </div>
                     );
                   })
                 }
+                
+                {/* Click handler area */}
+                {isWorkingDay(day) && (
+                  <div 
+                    className="absolute inset-0 cursor-pointer z-5" 
+                    onClick={(e) => {
+                      if (e.currentTarget === e.target) {
+                        // Calculate time based on click position
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const relativeX = e.clientX - rect.left;
+                        const percentX = relativeX / rect.width;
+                        
+                        const minuteOffset = totalMinutes * percentX;
+                        const clickMinutes = startMinutes + minuteOffset;
+                        
+                        const hours = Math.floor(clickMinutes / 60).toString().padStart(2, "0");
+                        const minutes = Math.round((clickMinutes % 60) / 30) * 30;
+                        const time = `${hours}:${minutes.toString().padStart(2, "0")}`;
+                        
+                        handleTimelineClick(prof.id, dayIndex, time);
+                      }
+                    }}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -889,6 +947,8 @@ const Turnos = () => {
                     visibleProfessionals={visibleProfessionals}
                     professionals={professionals}
                     onAvailabilityCreate={handleCreateAvailability}
+                    onAvailabilityUpdate={(updated) => console.log('Update', updated)}
+                    onAvailabilityDelete={(id) => console.log('Delete', id)}
                   />
                 </CardContent>
               </Card>

@@ -21,3 +21,12 @@ export interface AvailabilityPattern {
   start_time: string;
   end_time: string;
 }
+
+// Business hours configuration
+export interface BusinessHours {
+  start: string; // "09:00"
+  end: string; // "20:00"
+  breakStart?: string; // "14:00"
+  breakEnd?: string; // "16:00" 
+  daysOpen: number[]; // [1, 2, 3, 4, 5] for Monday to Friday
+}

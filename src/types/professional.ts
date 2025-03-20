@@ -2,7 +2,7 @@
 export interface Professional {
   id: string;
   name: string;
-  isWorking: boolean;
+  isWorking?: boolean;
   workingHours?: { start: string; end: string }[];
   appointments?: Appointment[];
 }
