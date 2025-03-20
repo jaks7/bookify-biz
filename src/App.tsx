@@ -25,6 +25,7 @@ import Services from './pages/Services';
 import Clients from './pages/Clients';
 import BusinessConfig from './pages/BusinessConfig';
 import ClientReservation from './pages/ClientReservation';
+import Turnos from './pages/Turnos';
 
 // Demo pages
 import DemoAgenda from './pages/demo/Agenda';
@@ -37,6 +38,7 @@ import DemoServices from './pages/demo/Services';
 import DemoClients from './pages/demo/Clients';
 import DemoProfile from './pages/demo/Profile';
 import DemoBusinessConfig from './pages/demo/BusinessConfig';
+import DemoTurnos from './pages/demo/Turnos';
 
 const queryClient = new QueryClient();
 
@@ -54,6 +56,7 @@ const App = () => (
             <Route path="/agenda" element={<Agenda />} />
             <Route path="/calendar" element={<CalendarView />} />
             <Route path="/reservation" element={<ClientReservation />} />
+            <Route path="/turnos" element={<Turnos />} />
             <Route path="/inteligenciaNegocio" element={<BusinessIntelligence />} />
             <Route path="/whatsapp" element={<WhatsApp />} />
             <Route path="/precios" element={<Pricing />} />
@@ -73,6 +76,7 @@ const App = () => (
             {/* Demo routes */}
             <Route path="/demo/agenda" element={<DemoAgenda />} />
             <Route path="/demo/calendar" element={<DemoCalendarView />} />
+            <Route path="/demo/turnos" element={<DemoTurnos />} />
             <Route path="/demo/dashboard" element={<DemoDashboard />} />
             <Route path="/demo/businesses" element={<DemoBusinesses />} />
             <Route path="/demo/businesses/:businessId" element={<DemoBusinessConfig />} />

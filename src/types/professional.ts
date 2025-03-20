@@ -2,7 +2,7 @@
 export interface Professional {
   id: string;
   name: string;
-  isWorking: boolean; // Make this required
+  isWorking: boolean;
   workingHours?: { start: string; end: string }[];
   appointments?: Appointment[];
 }

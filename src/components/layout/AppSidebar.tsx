@@ -12,7 +12,8 @@ import {
   ShoppingBag,
   User,
   UserRound,
-  Users
+  Users,
+  Clock
 } from "lucide-react";
 import { useAuth } from "@/stores/authContext";
 import {
@@ -87,6 +88,11 @@ export function AppSidebar() {
       title: "Agenda",
       to: "/agenda",
       icon: List
+    },
+    {
+      title: "Turnos",
+      to: "/turnos",
+      icon: Clock
     },
     {
       title: "Profesionales",
