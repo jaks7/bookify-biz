@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { format, addDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
@@ -163,7 +162,7 @@ const TimeScheduleHeader: React.FC<{ weekDays: Date[] }> = ({ weekDays }) => {
   const workingDays = weekDays.filter(day => isWorkingDay(day));
   
   return (
-    <div className="flex mb-4 border-b relative bg-white sticky top-0 z-10">
+    <div className="flex mb-1 border-b relative bg-white sticky top-0 z-10">
       {/* Left sidebar spacer - for professional name column */}
       <div className="w-48 flex-shrink-0 border-r p-2"></div>
       
@@ -185,7 +184,7 @@ const TimeScheduleHeader: React.FC<{ weekDays: Date[] }> = ({ weekDays }) => {
   );
 };
 
-// Time scale component showing business hours 
+// Improved time scale component showing business hours
 const TimeScale: React.FC = () => {
   // Generate time markers for the timeline based on business hours
   const startMinutes = timeToMinutes(BUSINESS_HOURS.start);
@@ -202,12 +201,12 @@ const TimeScale: React.FC = () => {
   }
   
   return (
-    <div className="h-6 relative mb-2 border-b">
+    <div className="h-8 relative mb-2 border-b bg-gray-50">
       {hourMarkers.map((marker, index) => (
         <div 
           key={index}
           className="absolute text-xs text-gray-500 transform -translate-x-1/2"
-          style={{ left: `${marker.position}%` }}
+          style={{ left: `${marker.position}%`, top: '4px' }}
         >
           {marker.time}
         </div>
@@ -356,8 +355,8 @@ const TimelineView: React.FC<TimelineProps> = ({
       {/* Week days header showing only business days */}
       <TimeScheduleHeader weekDays={allWeekDays} />
       
-      {/* Common time scale for all professionals */}
-      <div className="flex sticky top-[60px] z-10 bg-white/95 border-b pb-1">
+      {/* Common time scale for all professionals - moved outside the professionals loop */}
+      <div className="flex sticky top-[60px] z-10 bg-white/95 border-b">
         <div className="w-48 flex-shrink-0"></div>
         <div className="flex-1">
           <TimeScale />
@@ -366,9 +365,11 @@ const TimelineView: React.FC<TimelineProps> = ({
 
       {/* Timeline for each professional */}
       {visibleProfessionalsData.map((prof) => (
-        <div key={prof.id} className="flex mb-6">
+        <div key={prof.id} className="flex mb-4">
           {/* Professional name */}
-          <div className="w-48 flex-shrink-0 p-2 text-sm font-medium border-r">{prof.name}</div>
+          <div className="w-48 flex-shrink-0 p-2 text-sm font-medium border-r flex items-center">
+            {prof.name}
+          </div>
           
           {/* Timeline grid for the week - only showing business days */}
           <div className="flex-1 grid relative" style={{ 
@@ -943,25 +944,28 @@ const Turnos = () => {
                     <ArrowLeft className="w-4 h-4" />
                   </Button>
                   
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="min-w-[240px]">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        <span>
-                          {format(weekStart, "'Semana del' d 'de' MMMM", { locale: es })}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="center">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => date && setSelectedDate(date)}
-                        initialFocus
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  {/* Fixed calendar display - changed positioning to prevent overlay */}
+                  <div className="relative">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="min-w-[240px]">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <span>
+                            {format(weekStart, "'Semana del' d 'de' MMMM", { locale: es })}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="center">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => date && setSelectedDate(date)}
+                          initialFocus
+                          locale={es}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                   
                   <Button variant="outline" onClick={handleNextWeek}>
                     <ArrowRight className="w-4 h-4" />

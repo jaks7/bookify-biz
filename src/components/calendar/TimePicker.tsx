@@ -8,9 +8,10 @@ interface TimePickerProps {
   onChange: (value: string) => void;
   label?: string;
   className?: string;
+  id?: string; // Added id prop
 }
 
-export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, label, className }) => {
+export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, label, className, id }) => {
   // Generate time options from 00:00 to 23:30 in 30 minute increments
   const timeOptions = [];
   for (let hour = 0; hour < 24; hour++) {
@@ -23,9 +24,9 @@ export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, label, 
 
   return (
     <div className={className}>
-      {label && <Label className="mb-1 block">{label}</Label>}
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-24">
+      {label && <Label className="mb-1 block" htmlFor={id}>{label}</Label>}
+      <Select value={value} onValueChange={onChange} name={id}>
+        <SelectTrigger className="w-24" id={id}>
           <SelectValue placeholder="Seleccionar hora" />
         </SelectTrigger>
         <SelectContent className="max-h-[300px]">

@@ -80,21 +80,19 @@ export const AvailabilityDialog: React.FC<AvailabilityDialogProps> = ({
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label htmlFor="start-time">Hora de inicio</Label>
               <TimePicker
                 value={startTime}
                 onChange={setStartTime}
-                label="Inicio"
+                label="Hora de inicio"
                 id="start-time"
               />
             </div>
             
             <div className="space-y-1">
-              <Label htmlFor="end-time">Hora de fin</Label>
               <TimePicker
                 value={endTime}
                 onChange={setEndTime}
-                label="Fin"
+                label="Hora de fin"
                 id="end-time"
               />
             </div>
