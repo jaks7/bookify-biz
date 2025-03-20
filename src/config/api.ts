@@ -1,4 +1,3 @@
-
 export const API_BASE_URL = 'http://127.0.0.1:8000';
 
 export const ENDPOINTS = {
@@ -21,4 +20,10 @@ export const ENDPOINTS = {
     `${API_BASE_URL}/business/${businessId}/services/${serviceId}/delete/`,
   SERVICE_UPDATE: (businessId: string, serviceId: string) => 
     `${API_BASE_URL}/business/${businessId}/services/${serviceId}/update/`,
+  BUSINESS_CONFIG_CREATE: (businessId: string) => 
+    `${API_BASE_URL}/business/${businessId}/configuration/create/`,
+  BUSINESS_CONFIG_DETAIL: (businessId: string) => 
+    `${API_BASE_URL}/business/${businessId}/configuration/`,
+  BUSINESS_CONFIG_UPDATE: (businessId: string) => 
+    `${API_BASE_URL}/business/${businessId}/configuration/update/`,
 }; 

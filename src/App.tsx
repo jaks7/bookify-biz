@@ -64,7 +64,7 @@ const App = () => (
             {/* Management routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/businesses" element={<Businesses />} />
-            <Route path="/businesses/:businessId" element={<BusinessConfig />} />
+            <Route path="/configuracion" element={<BusinessConfig />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/professionals" element={<Professionals />} />
             <Route path="/services" element={<Services />} />

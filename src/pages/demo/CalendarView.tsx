@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { es } from "date-fns/locale";
@@ -23,7 +22,7 @@ const generateMonthOccupancy = (month: Date) => {
   }, {} as Record<string, number>);
 };
 
-const DemoCalendarView = () => {
+const CalendarView = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [view, setView] = useState<"calendar" | "day">("calendar");
@@ -55,7 +54,7 @@ const DemoCalendarView = () => {
     <AppSidebarWrapper>
       <div className="bg-gray-50 flex-1">
         <div className="container px-4 py-8 mx-auto">
-          <h1 className="text-2xl font-bold mb-6">Demo - Calendario de Disponibilidad</h1>
+          <h1 className="text-2xl font-bold mb-6">Calendario de Disponibilidad</h1>
           
           <Tabs defaultValue="calendar" value={view} onValueChange={(v) => setView(v as "calendar" | "day")}>
             <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-4">
@@ -192,4 +191,4 @@ const DemoCalendarView = () => {
   );
 };
 
-export default DemoCalendarView;
+export default CalendarView;

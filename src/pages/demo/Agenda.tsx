@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 
-const DemoAgenda = () => {
+const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   return (
@@ -19,10 +19,10 @@ const DemoAgenda = () => {
       <div className="bg-gray-50 flex-1">
         <div className="container px-4 py-8 mx-auto pt-20">
           <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-            <h1 className="text-2xl font-bold">Demo - Agenda</h1>
+            <h1 className="text-2xl font-bold">Agenda</h1>
             
             <div className="flex items-center gap-2">
-              <Link to="/demo/calendar">
+              <Link to="/calendar">
                 <Button variant="outline" className="flex items-center gap-2">
                   <Grid className="w-4 h-4" />
                   Ver Calendario
@@ -73,4 +73,4 @@ const DemoAgenda = () => {
   );
 };
 
-export default DemoAgenda;
+export default Agenda;
