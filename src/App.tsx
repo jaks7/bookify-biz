@@ -24,6 +24,7 @@ import Professionals from './pages/Professionals';
 import Services from './pages/Services';
 import Clients from './pages/Clients';
 import BusinessConfig from './pages/BusinessConfig';
+import ClientReservation from './pages/ClientReservation';
 
 // Demo pages
 import DemoAgenda from './pages/demo/Agenda';
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/agenda" element={<Agenda />} />
             <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/reservation" element={<ClientReservation />} />
             <Route path="/inteligenciaNegocio" element={<BusinessIntelligence />} />
             <Route path="/whatsapp" element={<WhatsApp />} />
             <Route path="/precios" element={<Pricing />} />
