@@ -69,11 +69,6 @@ export function AppSidebar() {
       title: "Mi perfil",
       to: "/mi_perfil",
       icon: UserRound
-    },
-    {
-      title: "Configuración",
-      to: "/settings",
-      icon: Cog
     }
   ];
   
@@ -108,6 +103,11 @@ export function AppSidebar() {
       title: "Clientes",
       to: "/clients",
       icon: User
+    },
+    {
+      title: "Configuración",
+      to: "/configuracion",
+      icon: Cog
     },
     {
       title: "Inteligencia de negocio",

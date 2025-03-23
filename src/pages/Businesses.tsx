@@ -246,16 +246,16 @@ export default function Businesses() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => navigate(`/businesses/${business.business_id}`)}
+                    onClick={() => navigate(`/configuracion`)}
                   >
                     <Settings className="mr-2 h-4 w-4" />
                     Configurar
                   </Button>
                   <Button 
                     size="sm"
-                    onClick={() => navigate(`/dashboard?business=${business.business_id}`)}
+                    onClick={() => navigate(`/agenda`)}
                   >
-                    Ver panel
+                    Ver Agenda
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </CardFooter>
