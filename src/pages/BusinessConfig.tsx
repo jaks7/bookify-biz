@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,7 +35,7 @@ import {
   ToggleGroup, 
   ToggleGroupItem 
 } from "@/components/ui/toggle-group";
-import { ArrowLeft, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { useAuth } from "@/stores/authContext";
 import { toast } from "@/components/ui/use-toast";
 
@@ -266,21 +266,11 @@ export default function BusinessConfig() {
   return (
     <AppSidebarWrapper>
       <div className="container mx-auto py-10 px-4">
-        <div className="flex items-center mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate(-1)} 
-            className="mr-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Configuración del Negocio</h1>
-            <p className="text-muted-foreground mt-1">
-              Configura la información y ajustes de tu negocio
-            </p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Configuración del Negocio</h1>
+          <p className="text-muted-foreground mt-1">
+            Configura la información y ajustes de tu negocio
+          </p>
         </div>
 
         {loading ? (

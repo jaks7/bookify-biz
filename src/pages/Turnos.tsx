@@ -4,19 +4,17 @@ import { es } from "date-fns/locale";
 import { 
   ArrowLeft, 
   ArrowRight, 
-  Calendar as CalendarIcon, 
   Plus,
   Save,
   Clock,
   Edit,
-  Trash2
+  Trash2,
+  Calendar
 } from "lucide-react";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -529,7 +527,7 @@ const CreateFromPatternDialog: React.FC<{
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start text-left">
-                <CalendarIcon className="mr-2 h-4 w-4" />
+                <Calendar className="mr-2 h-4 w-4" />
                 {dateRange?.from ? (
                   format(dateRange.from, "PPP", { locale: es })
                 ) : (
@@ -555,7 +553,7 @@ const CreateFromPatternDialog: React.FC<{
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start text-left">
-                <CalendarIcon className="mr-2 h-4 w-4" />
+                <Calendar className="mr-2 h-4 w-4" />
                 {dateRange?.to ? (
                   format(dateRange.to, "PPP", { locale: es })
                 ) : (
@@ -674,54 +672,20 @@ const PatternForm: React.FC<{
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Fecha inicio validez</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? (
-                  format(startDate, "PPP", { locale: es })
-                ) : (
-                  <span>Selecciona fecha</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
-                initialFocus
-                locale={es}
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <Input 
+            type="date"
+            value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
+            onChange={(e) => setStartDate(new Date(e.target.value))}
+          />
         </div>
 
         <div className="space-y-2">
           <Label>Fecha fin validez</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? (
-                  format(endDate, "PPP", { locale: es })
-                ) : (
-                  <span>Selecciona fecha</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={setEndDate}
-                initialFocus
-                locale={es}
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <Input 
+            type="date"
+            value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
+            onChange={(e) => setEndDate(new Date(e.target.value))}
+          />
         </div>
       </div>
 
@@ -775,8 +739,9 @@ const PatternForm: React.FC<{
 // Main Turnos component
 const Turnos = () => {
   const [activeTab, setActiveTab] = useState("turnos");
-  const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [weekStart, setWeekStart] = useState<Date>(
+    startOfWeek(new Date(), { weekStartsOn: 1 })
+  );
   const [availabilities, setAvailabilities] = useState<ProfessionalAvailability[]>(generateMockAvailability());
   const [patterns, setPatterns] = useState<AvailabilityPattern[]>(generateMockPatterns());
   const [createPatternsOpen, setCreatePatternsOpen] = useState(false);
@@ -794,20 +759,12 @@ const Turnos = () => {
     professionals.map(p => p.id)
   );
 
-  useEffect(() => {
-    if (selectedDate) {
-      setWeekStart(startOfWeek(selectedDate, { weekStartsOn: 1 }));
-    }
-  }, [selectedDate]);
-
   const handlePreviousWeek = () => {
     setWeekStart(subWeeks(weekStart, 1));
-    setSelectedDate(subWeeks(selectedDate, 1));
   };
 
   const handleNextWeek = () => {
     setWeekStart(addWeeks(weekStart, 1));
-    setSelectedDate(addWeeks(selectedDate, 1));
   };
 
   const toggleProfessionalVisibility = (id: string) => {
@@ -944,27 +901,10 @@ const Turnos = () => {
                     <ArrowLeft className="w-4 h-4" />
                   </Button>
                   
-                  {/* Fixed calendar display - changed positioning to prevent overlay */}
-                  <div className="relative">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="min-w-[240px]">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          <span>
-                            {format(weekStart, "'Semana del' d 'de' MMMM", { locale: es })}
-                          </span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="center">
-                        <Calendar
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={(date) => date && setSelectedDate(date)}
-                          initialFocus
-                          locale={es}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <div className="min-w-[240px] text-center">
+                    <span className="text-sm font-medium">
+                      {format(weekStart, "'Semana del' d 'de' MMMM", { locale: es })}
+                    </span>
                   </div>
                   
                   <Button variant="outline" onClick={handleNextWeek}>
@@ -975,7 +915,7 @@ const Turnos = () => {
                 <Dialog open={createPatternOpen} onOpenChange={setCreatePatternOpen}>
                   <DialogTrigger asChild>
                     <Button className="flex items-center gap-2">
-                      <Plus className="w-4 h-4" />
+                      <Calendar className="w-4 h-4" />
                       Nueva plantilla
                     </Button>
                   </DialogTrigger>
