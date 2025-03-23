@@ -1,6 +1,4 @@
 
-import { Professional } from "./professional";
-
 export interface ProfessionalAvailability {
   id: string;
   professional: string;
@@ -41,4 +39,24 @@ export interface AvailabilityDialogProps {
   professionalId: string;
   professionalName: string;
   isEditing: boolean;
+}
+
+// New types for the backend JSON format
+export interface BusinessAvailability {
+  biz_date_time_start: string; // "2025-03-25T09:00"
+  biz_date_time_end: string; // "2025-03-25T13:00"
+}
+
+export interface ShiftData {
+  id: string;
+  professional_id: number;
+  professional_name: string;
+  datetime_start: string;
+  datetime_end: string;
+}
+
+export interface BusinessScheduleData {
+  exceptions: any[];
+  business_availability: BusinessAvailability[];
+  shifts: ShiftData[];
 }

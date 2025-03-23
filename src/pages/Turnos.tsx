@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { format, addDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval } from "date-fns";
+import { format, addDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
   ArrowLeft, 
@@ -22,23 +22,43 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { TimePicker } from "@/components/calendar/TimePicker";
 import { Switch } from "@/components/ui/switch";
-import { ProfessionalAvailability, AvailabilityPattern, BusinessHours } from "@/types/availability";
+import { 
+  ProfessionalAvailability, 
+  AvailabilityPattern, 
+  BusinessHours, 
+  BusinessAvailability,
+  BusinessScheduleData,
+  ShiftData
+} from "@/types/availability";
 import { AvailabilityDialog } from "@/components/calendar/AvailabilityDialog";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-// Mock business hours for the timeline
+// Helper to convert time string to minutes for positioning
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+// Helper to extract time from datetime string
+const extractTime = (datetime: string) => {
+  const parts = datetime.split('T');
+  return parts[1];
+};
+
+// Helper to extract date from datetime string
+const extractDate = (datetime: string) => {
+  const parts = datetime.split('T');
+  return parts[0];
+};
+
+// Mock business hours for the timeline (will be replaced by the API data)
 const BUSINESS_HOURS: BusinessHours = {
   start: "09:00",
   end: "20:00",
   breakStart: "14:00",
   breakEnd: "16:00",
   daysOpen: [1, 2, 3, 4, 5, 6], // Monday to Saturday
-};
-
-// Convert time string to minutes for positioning
-const timeToMinutes = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
 };
 
 // Helper to check if a date is a working day
@@ -154,17 +174,141 @@ const generateMockPatterns = () => {
   return patterns;
 };
 
+// Mock API response data similar to the JSON format provided
+const mockApiResponse: BusinessScheduleData = {
+  exceptions: [],
+  business_availability: [
+    {
+      biz_date_time_start: "2025-03-25T09:00",
+      biz_date_time_end: "2025-03-25T13:00"
+    },
+    {
+      biz_date_time_start: "2025-03-25T14:00",
+      biz_date_time_end: "2025-03-25T18:00"
+    },
+    {
+      biz_date_time_start: "2025-03-26T09:00",
+      biz_date_time_end: "2025-03-26T13:00"
+    },
+    {
+      biz_date_time_start: "2025-03-26T14:00",
+      biz_date_time_end: "2025-03-26T18:00"
+    },
+    {
+      biz_date_time_start: "2025-03-27T09:00",
+      biz_date_time_end: "2025-03-27T13:00"
+    },
+    {
+      biz_date_time_start: "2025-03-27T14:00",
+      biz_date_time_end: "2025-03-27T18:00"
+    },
+    {
+      biz_date_time_start: "2025-03-28T09:00",
+      biz_date_time_end: "2025-03-28T13:00"
+    },
+    {
+      biz_date_time_start: "2025-03-28T14:00",
+      biz_date_time_end: "2025-03-28T18:00"
+    }
+  ],
+  shifts: [
+    {
+      id: "8b878a8e",
+      professional_id: 1,
+      professional_name: "Gema None",
+      datetime_start: "2025-03-24T09:00",
+      datetime_end: "2025-03-24T13:00"
+    }
+  ]
+};
+
+// Function to convert api data to business hours format
+const getBusinessHoursFromAPI = (apiData: BusinessScheduleData): Map<string, {start: string, end: string}[]> => {
+  const businessHoursMap = new Map<string, {start: string, end: string}[]>();
+  
+  apiData.business_availability.forEach(availability => {
+    const date = extractDate(availability.biz_date_time_start);
+    const startTime = extractTime(availability.biz_date_time_start);
+    const endTime = extractTime(availability.biz_date_time_end);
+    
+    if (businessHoursMap.has(date)) {
+      businessHoursMap.get(date)?.push({ start: startTime, end: endTime });
+    } else {
+      businessHoursMap.set(date, [{ start: startTime, end: endTime }]);
+    }
+  });
+  
+  return businessHoursMap;
+};
+
+// Convert API shifts to ProfessionalAvailability format
+const convertShiftsToAvailabilities = (shifts: ShiftData[]): ProfessionalAvailability[] => {
+  return shifts.map(shift => ({
+    id: shift.id,
+    professional: shift.professional_id.toString(),
+    professionalName: shift.professional_name,
+    date: extractDate(shift.datetime_start),
+    start_time: extractTime(shift.datetime_start),
+    end_time: extractTime(shift.datetime_end)
+  }));
+};
+
+// Helper class to manage business days and hours
+class BusinessSchedule {
+  private businessHoursMap: Map<string, {start: string, end: string}[]>;
+  
+  constructor(apiData: BusinessScheduleData) {
+    this.businessHoursMap = getBusinessHoursFromAPI(apiData);
+  }
+  
+  // Get all available dates
+  getDates(): string[] {
+    return Array.from(this.businessHoursMap.keys()).sort();
+  }
+  
+  // Get hours for a specific date
+  getHoursForDate(date: string): {start: string, end: string}[] {
+    return this.businessHoursMap.get(date) || [];
+  }
+  
+  // Check if a date has business hours
+  hasBusinessHours(date: string): boolean {
+    return this.businessHoursMap.has(date) && this.businessHoursMap.get(date)!.length > 0;
+  }
+  
+  // Get min and max time for a date
+  getTimeRangeForDate(date: string): {minTime: string, maxTime: string} {
+    const hours = this.getHoursForDate(date);
+    if (hours.length === 0) {
+      return { minTime: "09:00", maxTime: "18:00" }; // Default
+    }
+    
+    let minTime = hours[0].start;
+    let maxTime = hours[0].end;
+    
+    hours.forEach(hour => {
+      if (hour.start < minTime) minTime = hour.start;
+      if (hour.end > maxTime) maxTime = hour.end;
+    });
+    
+    return { minTime, maxTime };
+  }
+}
+
 // Weekly header component showing only working days
-const TimeScheduleHeader: React.FC<{ weekDays: Date[] }> = ({ weekDays }) => {
-  // Filter to only show working days
-  const workingDays = weekDays.filter(day => isWorkingDay(day));
+const TimeScheduleHeader: React.FC<{ weekDays: Date[], businessSchedule: BusinessSchedule }> = ({ weekDays, businessSchedule }) => {
+  // Filter to only show days with business hours
+  const workingDays = weekDays.filter(day => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    return businessSchedule.hasBusinessHours(dateStr);
+  });
   
   return (
     <div className="flex mb-1 border-b relative bg-white sticky top-0 z-10">
       {/* Left sidebar spacer - for professional name column */}
       <div className="w-48 flex-shrink-0 border-r p-2"></div>
       
-      {/* Time header */}
+      {/* Day header */}
       <div className="flex-1 grid relative" style={{ 
         gridTemplateColumns: `repeat(${workingDays.length}, 1fr)` 
       }}>
@@ -182,33 +326,36 @@ const TimeScheduleHeader: React.FC<{ weekDays: Date[] }> = ({ weekDays }) => {
   );
 };
 
-// Improved time scale component showing business hours
-const TimeScale: React.FC = () => {
-  // Generate time markers for the timeline based on business hours
-  const startMinutes = timeToMinutes(BUSINESS_HOURS.start);
-  const endMinutes = timeToMinutes(BUSINESS_HOURS.end);
-  
-  // Create hour markers every 60 minutes
-  const hourMarkers = [];
-  for (let minutes = startMinutes; minutes <= endMinutes; minutes += 60) {
-    const hours = Math.floor(minutes / 60);
-    const timeLabel = `${hours.toString().padStart(2, '0')}:00`;
-    const position = ((minutes - startMinutes) / (endMinutes - startMinutes)) * 100;
-    
-    hourMarkers.push({ time: timeLabel, position });
-  }
+// Improved time scale component showing business hours for specified days
+const TimeScale: React.FC<{ 
+  weekDays: Date[], 
+  businessSchedule: BusinessSchedule 
+}> = ({ weekDays, businessSchedule }) => {
+  const workingDays = weekDays.filter(day => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    return businessSchedule.hasBusinessHours(dateStr);
+  });
   
   return (
     <div className="h-8 relative mb-2 border-b bg-gray-50">
-      {hourMarkers.map((marker, index) => (
-        <div 
-          key={index}
-          className="absolute text-xs text-gray-500 transform -translate-x-1/2"
-          style={{ left: `${marker.position}%`, top: '4px' }}
-        >
-          {marker.time}
-        </div>
-      ))}
+      <div className="absolute inset-0 flex w-full">
+        {workingDays.map((day, index) => {
+          const dateStr = format(day, 'yyyy-MM-dd');
+          const { minTime, maxTime } = businessSchedule.getTimeRangeForDate(dateStr);
+          
+          return (
+            <div 
+              key={index} 
+              className="flex-1 relative border-r last:border-r-0 px-2"
+            >
+              <div className="flex justify-between items-center h-full">
+                <span className="text-xs text-gray-500">{minTime}</span>
+                <span className="text-xs text-gray-500">{maxTime}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -218,6 +365,7 @@ interface TimelineProps {
   weekStart: Date;
   visibleProfessionals: string[];
   professionals: { id: string; name: string }[];
+  businessSchedule: BusinessSchedule;
   onAvailabilityUpdate?: (updated: ProfessionalAvailability) => void;
   onAvailabilityCreate?: (newAvail: ProfessionalAvailability) => void;
   onAvailabilityDelete?: (id: string) => void;
@@ -228,6 +376,7 @@ const TimelineView: React.FC<TimelineProps> = ({
   weekStart, 
   visibleProfessionals,
   professionals,
+  businessSchedule,
   onAvailabilityUpdate,
   onAvailabilityCreate,
   onAvailabilityDelete
@@ -240,16 +389,14 @@ const TimelineView: React.FC<TimelineProps> = ({
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<string>('');
   const [selectedProfessionalName, setSelectedProfessionalName] = useState<string>('');
   
-  // Calculate business hours once
-  const startMinutes = timeToMinutes(BUSINESS_HOURS.start);
-  const endMinutes = timeToMinutes(BUSINESS_HOURS.end);
-  const totalMinutes = endMinutes - startMinutes;
-
   // Generate all days in week
   const allWeekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   
-  // Filter to only working days
-  const weekDays = allWeekDays.filter(day => isWorkingDay(day));
+  // Filter to only working days with business hours
+  const weekDays = allWeekDays.filter(day => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    return businessSchedule.hasBusinessHours(dateStr);
+  });
 
   // Filter availabilities for current week and only working days
   const weekAvailabilities = availabilities.filter(avail => {
@@ -257,7 +404,7 @@ const TimelineView: React.FC<TimelineProps> = ({
     return isWithinInterval(availDate, {
       start: weekStart,
       end: addDays(weekStart, 6)
-    }) && isWorkingDay(availDate);
+    }) && weekDays.some(day => format(day, 'yyyy-MM-dd') === avail.date);
   });
 
   // Get visible professionals with their availabilities
@@ -268,25 +415,31 @@ const TimelineView: React.FC<TimelineProps> = ({
       availabilities: weekAvailabilities.filter(avail => avail.professional === prof.id)
     }));
 
-  // Calculate position and width of an availability block
+  // Calculate position and width of an availability block for a specific day
   const calculatePositioning = (startTime: string, endTime: string, date: string) => {
-    const availDate = parseISO(date);
-    // Find the index of this date in our filtered working days array
+    // Find the date in our filtered working days array
     const dayIndex = weekDays.findIndex(day => 
-      format(day, 'yyyy-MM-dd') === format(availDate, 'yyyy-MM-dd')
+      format(day, 'yyyy-MM-dd') === date
     );
     
-    if (dayIndex === -1) return null; // Not a working day or not in this week
+    if (dayIndex === -1) return null; // Not in this week's days
     
-    const startTimeMinutes = timeToMinutes(startTime) - startMinutes;
-    const endTimeMinutes = timeToMinutes(endTime) - startMinutes;
-    const width = ((endTimeMinutes - startTimeMinutes) / totalMinutes) * 100;
-    const left = (startTimeMinutes / totalMinutes) * 100;
+    const { minTime, maxTime } = businessSchedule.getTimeRangeForDate(date);
+    const startMinutes = timeToMinutes(minTime);
+    const endMinutes = timeToMinutes(maxTime);
+    const totalMinutes = endMinutes - startMinutes;
+    
+    const slotStartMinutes = timeToMinutes(startTime) - startMinutes;
+    const slotEndMinutes = timeToMinutes(endTime) - startMinutes;
+    
+    // Calculate position as percentage of total minutes
+    const left = (slotStartMinutes / totalMinutes) * 100;
+    const width = ((slotEndMinutes - slotStartMinutes) / totalMinutes) * 100;
     
     return {
-      width: `${width}%`,
+      dayIndex,
       left: `${left}%`,
-      dayIndex
+      width: `${width}%`
     };
   };
 
@@ -349,15 +502,15 @@ const TimelineView: React.FC<TimelineProps> = ({
   };
 
   return (
-    <div className="mt-4 relative">
+    <div className="mt-4 relative overflow-x-auto">
       {/* Week days header showing only business days */}
-      <TimeScheduleHeader weekDays={allWeekDays} />
+      <TimeScheduleHeader weekDays={allWeekDays} businessSchedule={businessSchedule} />
       
-      {/* Common time scale for all professionals - moved outside the professionals loop */}
+      {/* Common time scale for all professionals */}
       <div className="flex sticky top-[60px] z-10 bg-white/95 border-b">
         <div className="w-48 flex-shrink-0"></div>
         <div className="flex-1">
-          <TimeScale />
+          <TimeScale weekDays={allWeekDays} businessSchedule={businessSchedule} />
         </div>
       </div>
 
@@ -375,6 +528,7 @@ const TimelineView: React.FC<TimelineProps> = ({
           }}>
             {weekDays.map((day, dayIndex) => {
               const dateStr = format(day, 'yyyy-MM-dd');
+              const { minTime, maxTime } = businessSchedule.getTimeRangeForDate(dateStr);
               
               return (
                 <div 
@@ -386,7 +540,7 @@ const TimelineView: React.FC<TimelineProps> = ({
                   
                   {/* Rendered availabilities for this day */}
                   {prof.availabilities
-                    .filter(avail => format(parseISO(avail.date), 'yyyy-MM-dd') === dateStr)
+                    .filter(avail => avail.date === dateStr)
                     .map(avail => {
                       const positioning = calculatePositioning(avail.start_time, avail.end_time, avail.date);
                       if (!positioning) return null;
@@ -404,10 +558,10 @@ const TimelineView: React.FC<TimelineProps> = ({
                           }}
                           onClick={() => handleAvailabilityClick(avail)}
                         >
-                          <div className="flex items-center overflow-hidden">
-                            <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
-                            <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-                              {avail.start_time} - {avail.end_time}
+                          <div className="flex items-center gap-1 overflow-hidden">
+                            <Clock className="h-3 w-3 flex-shrink-0" />
+                            <span className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                              {avail.start_time}-{avail.end_time}
                             </span>
                           </div>
                           
@@ -447,6 +601,10 @@ const TimelineView: React.FC<TimelineProps> = ({
                         const percentX = relativeX / rect.width;
                         
                         // Calculate time based on click position
+                        const startMinutes = timeToMinutes(minTime);
+                        const endMinutes = timeToMinutes(maxTime);
+                        const totalMinutes = endMinutes - startMinutes;
+                        
                         const minuteOffset = totalMinutes * percentX;
                         const clickMinutes = startMinutes + minuteOffset;
                         
@@ -524,54 +682,20 @@ const CreateFromPatternDialog: React.FC<{
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Fecha inicio</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left">
-                <Calendar className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  format(dateRange.from, "PPP", { locale: es })
-                ) : (
-                  <span>Selecciona fecha</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateRange?.from}
-                onSelect={(date) => date && setDateRange({ from: date, to: dateRange?.to })}
-                initialFocus
-                locale={es}
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <Input 
+            type="date"
+            value={dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : ""}
+            onChange={(e) => setDateRange({ from: new Date(e.target.value), to: dateRange?.to })}
+          />
         </div>
 
         <div className="space-y-2">
           <Label>Fecha fin</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left">
-                <Calendar className="mr-2 h-4 w-4" />
-                {dateRange?.to ? (
-                  format(dateRange.to, "PPP", { locale: es })
-                ) : (
-                  <span>Selecciona fecha</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateRange?.to}
-                onSelect={(date) => date && setDateRange({ from: dateRange?.from || new Date(), to: date })}
-                initialFocus
-                locale={es}
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <Input 
+            type="date"
+            value={dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : ""}
+            onChange={(e) => setDateRange({ from: dateRange?.from || new Date(), to: new Date(e.target.value) })}
+          />
         </div>
       </div>
 
@@ -747,6 +871,10 @@ const Turnos = () => {
   const [createPatternsOpen, setCreatePatternsOpen] = useState(false);
   const [createPatternOpen, setCreatePatternOpen] = useState(false);
   const [editPatternId, setEditPatternId] = useState<string | null>(null);
+  const [apiData, setApiData] = useState<BusinessScheduleData>(mockApiResponse);
+  
+  // Create business schedule from API data
+  const businessSchedule = new BusinessSchedule(apiData);
   
   // Mock professionals data
   const professionals = [
@@ -758,6 +886,16 @@ const Turnos = () => {
   const [visibleProfessionals, setVisibleProfessionals] = useState<string[]>(
     professionals.map(p => p.id)
   );
+
+  useEffect(() => {
+    // Simulate API call to get the data
+    // In a real app, you would call your API here
+    setApiData(mockApiResponse);
+    
+    // Convert shifts to availabilities
+    const apiAvailabilities = convertShiftsToAvailabilities(mockApiResponse.shifts);
+    setAvailabilities([...generateMockAvailability(), ...apiAvailabilities]);
+  }, []);
 
   const handlePreviousWeek = () => {
     setWeekStart(subWeeks(weekStart, 1));
@@ -845,7 +983,9 @@ const Turnos = () => {
   };
 
   const handleCreateAvailability = (newAvail: ProfessionalAvailability) => {
-    setAvailabilities([...availabilities, newAvail]);
+    const generatedId = `avail-${newAvail.professional}-${newAvail.date}-${Date.now()}`;
+    const availabilityWithId = { ...newAvail, id: generatedId };
+    setAvailabilities([...availabilities, availabilityWithId]);
   };
   
   const handleUpdateAvailability = (updated: ProfessionalAvailability) => {
@@ -967,6 +1107,7 @@ const Turnos = () => {
                     weekStart={weekStart}
                     visibleProfessionals={visibleProfessionals}
                     professionals={professionals}
+                    businessSchedule={businessSchedule}
                     onAvailabilityCreate={handleCreateAvailability}
                     onAvailabilityUpdate={handleUpdateAvailability}
                     onAvailabilityDelete={handleDeleteAvailability}
