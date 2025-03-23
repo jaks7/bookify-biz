@@ -61,6 +61,25 @@ export const ProfessionalTimeline: React.FC<ProfessionalTimelineProps> = ({
       .toUpperCase();
   };
 
+  // Format time string to be more readable
+  const formatTimeDisplay = (time: string) => {
+    return time;
+  };
+
+  // Calculate end time based on start time (assuming 30 min slots)
+  const calculateEndTime = (startTime: string) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    let endHours = hours;
+    let endMinutes = minutes + 30;
+    
+    if (endMinutes >= 60) {
+      endHours += 1;
+      endMinutes = 0;
+    }
+    
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  };
+
   return (
     <Card className="border-gray-200 shadow-sm mb-4">
       <CardHeader className="py-3 px-4 bg-gray-50 border-b border-gray-200">
@@ -77,6 +96,8 @@ export const ProfessionalTimeline: React.FC<ProfessionalTimelineProps> = ({
         <div className="grid gap-2">
           {timeSlots.map((slot) => {
             const isAvailable = isWithinWorkingHours(slot.time);
+            const endTime = calculateEndTime(slot.time);
+            
             return (
               <div 
                 key={slot.id}
@@ -97,8 +118,9 @@ export const ProfessionalTimeline: React.FC<ProfessionalTimelineProps> = ({
                   )}>
                     <Clock className="h-3.5 w-3.5" />
                   </div>
-                  <div>
-                    <div className="font-medium text-gray-800">{slot.time}</div>
+                  <div className="flex flex-col">
+                    <div className="font-medium text-gray-800 text-sm leading-tight">{formatTimeDisplay(slot.time)}</div>
+                    <div className="text-xs text-gray-500 leading-tight">{endTime}</div>
                     {slot.appointment && (
                       <div className="text-sm text-gray-500 flex items-center mt-1">
                         <User className="h-3 w-3 mr-1" /> 
