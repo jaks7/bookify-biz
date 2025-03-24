@@ -1018,8 +1018,8 @@ const Turnos = () => {
     try {
       const data = {
         professional: updated.professional,
-        start_time: updated.start_time,
-        end_time: updated.end_time
+        datetime_start: `${updated.date}T${updated.start_time}:00Z`,
+        datetime_end: `${updated.date}T${updated.end_time}:00Z`
       };
 
       await axios.put(
