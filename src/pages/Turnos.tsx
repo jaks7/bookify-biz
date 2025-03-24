@@ -33,6 +33,11 @@ import {
 import { AvailabilityDialog } from "@/components/calendar/AvailabilityDialog";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import axios from 'axios';
+import { ENDPOINTS } from '@/config/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from "@/stores/authContext";
+import { useProfessional } from '@/stores/professionalContext';
 
 // Helper to convert time string to minutes for positioning
 const timeToMinutes = (time: string) => {
@@ -222,11 +227,14 @@ const mockApiResponse: BusinessScheduleData = {
   ]
 };
 
-// Function to convert api data to business hours format
+// Función para convertir datos de la API
 const getBusinessHoursFromAPI = (apiData: BusinessScheduleData): Map<string, {start: string, end: string}[]> => {
   const businessHoursMap = new Map<string, {start: string, end: string}[]>();
   
-  apiData.business_availability.forEach(availability => {
+  // Asegurarse de que business_availability existe y es un array
+  const availability = apiData?.business_availability || [];
+  
+  availability.forEach(availability => {
     const date = extractDate(availability.biz_date_time_start);
     const startTime = extractTime(availability.biz_date_time_start);
     const endTime = extractTime(availability.biz_date_time_end);
@@ -241,15 +249,15 @@ const getBusinessHoursFromAPI = (apiData: BusinessScheduleData): Map<string, {st
   return businessHoursMap;
 };
 
-// Convert API shifts to ProfessionalAvailability format
-const convertShiftsToAvailabilities = (shifts: ShiftData[]): ProfessionalAvailability[] => {
+// Convertir turnos de la API
+const convertShiftsToAvailabilities = (shifts: ShiftData[] = []): ProfessionalAvailability[] => {
   return shifts.map(shift => ({
     id: shift.id,
     professional: shift.professional_id.toString(),
     professionalName: shift.professional_name,
-    date: extractDate(shift.datetime_start),
-    start_time: extractTime(shift.datetime_start),
-    end_time: extractTime(shift.datetime_end)
+    date: format(parseISO(shift.datetime_start), 'yyyy-MM-dd'),
+    start_time: format(parseISO(shift.datetime_start), 'HH:mm'),
+    end_time: format(parseISO(shift.datetime_end), 'HH:mm')
   }));
 };
 
@@ -258,7 +266,22 @@ class BusinessSchedule {
   private businessHoursMap: Map<string, {start: string, end: string}[]>;
   
   constructor(apiData: BusinessScheduleData) {
-    this.businessHoursMap = getBusinessHoursFromAPI(apiData);
+    this.businessHoursMap = new Map();
+    
+    // Procesar business_availability
+    apiData.business_availability.forEach(slot => {
+      const date = extractDate(slot.biz_date_time_start);
+      const startTime = extractTime(slot.biz_date_time_start);
+      const endTime = extractTime(slot.biz_date_time_end);
+      
+      if (this.businessHoursMap.has(date)) {
+        this.businessHoursMap.get(date)?.push({ start: startTime, end: endTime });
+      } else {
+        this.businessHoursMap.set(date, [{ start: startTime, end: endTime }]);
+      }
+    });
+    
+    console.log('Processed business hours:', Object.fromEntries(this.businessHoursMap));
   }
   
   // Get all available dates
@@ -364,11 +387,11 @@ interface TimelineProps {
   availabilities: ProfessionalAvailability[];
   weekStart: Date;
   visibleProfessionals: string[];
-  professionals: { id: string; name: string }[];
+  professionals: Professional[];
   businessSchedule: BusinessSchedule;
-  onAvailabilityUpdate?: (updated: ProfessionalAvailability) => void;
-  onAvailabilityCreate?: (newAvail: ProfessionalAvailability) => void;
-  onAvailabilityDelete?: (id: string) => void;
+  onAvailabilityCreate: (availability: ProfessionalAvailability) => void;
+  onAvailabilityUpdate: (availability: ProfessionalAvailability) => void;
+  onAvailabilityDelete: (id: string) => void;
 }
 
 const TimelineView: React.FC<TimelineProps> = ({ 
@@ -377,265 +400,186 @@ const TimelineView: React.FC<TimelineProps> = ({
   visibleProfessionals,
   professionals,
   businessSchedule,
-  onAvailabilityUpdate,
   onAvailabilityCreate,
+  onAvailabilityUpdate,
   onAvailabilityDelete
 }) => {
-  // State for dialog
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [currentAvailability, setCurrentAvailability] = useState<ProfessionalAvailability | undefined>(undefined);
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedProfessionalId, setSelectedProfessionalId] = useState<string>('');
-  const [selectedProfessionalName, setSelectedProfessionalName] = useState<string>('');
-  
-  // Generate all days in week
-  const allWeekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  
-  // Filter to only working days with business hours
-  const weekDays = allWeekDays.filter(day => {
+  const [selectedAvailability, setSelectedAvailability] = useState<ProfessionalAvailability | undefined>();
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedProfessional, setSelectedProfessional] = useState<{ id: string, name: string } | null>(null);
+
+  // Obtener los días laborables de la semana
+  const weekDays = Array.from({ length: 7 }, (_, i) => 
+    addDays(weekStart, i)
+  ).filter(day => {
     const dateStr = format(day, 'yyyy-MM-dd');
     return businessSchedule.hasBusinessHours(dateStr);
   });
 
-  // Filter availabilities for current week and only working days
-  const weekAvailabilities = availabilities.filter(avail => {
-    const availDate = parseISO(avail.date);
-    return isWithinInterval(availDate, {
-      start: weekStart,
-      end: addDays(weekStart, 6)
-    }) && weekDays.some(day => format(day, 'yyyy-MM-dd') === avail.date);
-  });
-
-  // Get visible professionals with their availabilities
-  const visibleProfessionalsData = professionals
-    .filter(prof => visibleProfessionals.includes(prof.id))
-    .map(prof => ({
-      ...prof,
-      availabilities: weekAvailabilities.filter(avail => avail.professional === prof.id)
-    }));
-
-  // Calculate position and width of an availability block for a specific day
-  const calculatePositioning = (startTime: string, endTime: string, date: string) => {
-    // Find the date in our filtered working days array
-    const dayIndex = weekDays.findIndex(day => 
-      format(day, 'yyyy-MM-dd') === date
-    );
-    
-    if (dayIndex === -1) return null; // Not in this week's days
-    
-    const { minTime, maxTime } = businessSchedule.getTimeRangeForDate(date);
-    const startMinutes = timeToMinutes(minTime);
-    const endMinutes = timeToMinutes(maxTime);
-    const totalMinutes = endMinutes - startMinutes;
-    
-    const slotStartMinutes = timeToMinutes(startTime) - startMinutes;
-    const slotEndMinutes = timeToMinutes(endTime) - startMinutes;
-    
-    // Calculate position as percentage of total minutes
-    const left = (slotStartMinutes / totalMinutes) * 100;
-    const width = ((slotEndMinutes - slotStartMinutes) / totalMinutes) * 100;
-    
-    return {
-      dayIndex,
-      left: `${left}%`,
-      width: `${width}%`
-    };
-  };
-
-  // Handle click on timeline to create new availability
-  const handleTimelineClick = (professionalId: string, professionalName: string, date: string, time: string) => {
-    // Calculate a default end time (1 hour after start)
-    const startTimeMinutes = timeToMinutes(time);
-    const endTimeMinutes = startTimeMinutes + 60;
-    const endHours = Math.floor(endTimeMinutes / 60).toString().padStart(2, "0");
-    const endMinutes = (endTimeMinutes % 60).toString().padStart(2, "0");
-    const endTime = `${endHours}:${endMinutes}`;
-    
-    setCurrentAvailability(undefined);
-    setIsEditing(false);
-    setSelectedDate(date);
-    setSelectedProfessionalId(professionalId);
-    setSelectedProfessionalName(professionalName);
-    
-    // Initialize the new availability with the clicked time
-    const newAvailability: ProfessionalAvailability = {
-      id: '',
-      professional: professionalId,
-      professionalName: professionalName,
-      date: date,
-      start_time: time,
-      end_time: endTime
-    };
-    
-    setCurrentAvailability(newAvailability);
-    setDialogOpen(true);
-  };
-  
-  // Handle click on existing availability to edit
-  const handleAvailabilityClick = (availability: ProfessionalAvailability) => {
-    setCurrentAvailability(availability);
-    setIsEditing(true);
-    setSelectedDate(availability.date);
-    setSelectedProfessionalId(availability.professional);
-    setSelectedProfessionalName(availability.professionalName || '');
-    setDialogOpen(true);
-  };
-  
-  // Handle save of new or updated availability
-  const handleSaveAvailability = (availability: ProfessionalAvailability) => {
-    if (isEditing && onAvailabilityUpdate) {
-      onAvailabilityUpdate(availability);
-      toast.success("Disponibilidad actualizada correctamente");
-    } else if (onAvailabilityCreate) {
-      onAvailabilityCreate(availability);
-      toast.success("Disponibilidad creada correctamente");
-    }
-  };
-  
-  // Handle delete availability
-  const handleDeleteAvailability = (id: string) => {
-    if (onAvailabilityDelete) {
-      onAvailabilityDelete(id);
-      toast.success("Disponibilidad eliminada correctamente");
-    }
-  };
-
   return (
     <div className="mt-4 relative overflow-x-auto">
-      {/* Week days header showing only business days */}
-      <TimeScheduleHeader weekDays={allWeekDays} businessSchedule={businessSchedule} />
+      <TimeScheduleHeader weekDays={weekDays} businessSchedule={businessSchedule} />
+      <TimeScale weekDays={weekDays} businessSchedule={businessSchedule} />
       
-      {/* Common time scale for all professionals */}
-      <div className="flex sticky top-[60px] z-10 bg-white/95 border-b">
-        <div className="w-48 flex-shrink-0"></div>
-        <div className="flex-1">
-          <TimeScale weekDays={allWeekDays} businessSchedule={businessSchedule} />
-        </div>
+      <div className="space-y-4">
+        {professionals
+          .filter(prof => visibleProfessionals.includes(prof.professional_id.toString()))
+          .map((prof) => (
+            <div key={prof.professional_id} className="flex mb-4">
+              <div className="w-48 flex-shrink-0 p-2 text-sm font-medium border-r flex items-center">
+                {prof.name}
+              </div>
+              
+              <div className="flex-1 grid" style={{ 
+                gridTemplateColumns: `repeat(${weekDays.length}, 1fr)` 
+              }}>
+                {weekDays.map((day, dayIndex) => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dayAvailabilities = availabilities.filter(
+                    avail => avail.date === dateStr && 
+                            avail.professional === prof.professional_id.toString()
+                  );
+
+                  return (
+                    <div 
+                      key={dayIndex} 
+                      className="relative h-16 border-r last:border-r-0"
+                    >
+                      {/* Área clickeable para crear nuevos turnos */}
+                      <div 
+                        className="absolute inset-0 bg-gray-50" 
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const relativeX = e.clientX - rect.left;
+                          const percentX = relativeX / rect.width;
+                          
+                          // Calcular tiempo basado en la posición del click
+                          const { minTime, maxTime } = businessSchedule.getTimeRangeForDate(dateStr);
+                          const startMinutes = timeToMinutes(minTime);
+                          const endMinutes = timeToMinutes(maxTime);
+                          const totalMinutes = endMinutes - startMinutes;
+                          
+                          const clickMinutes = startMinutes + (totalMinutes * percentX);
+                          const roundedMinutes = Math.round(clickMinutes / 30) * 30;
+                          const hours = Math.floor(roundedMinutes / 60).toString().padStart(2, "0");
+                          const minutes = (roundedMinutes % 60).toString().padStart(2, "0");
+                          const time = `${hours}:${minutes}`;
+                          
+                          setSelectedProfessional({ 
+                            id: prof.professional_id.toString(), 
+                            name: prof.name 
+                          });
+                          setSelectedDate(dateStr);
+                          setSelectedAvailability(undefined);
+                          setDialogOpen(true);
+                        }}
+                      />
+                      
+                      {/* Slots existentes */}
+                      {dayAvailabilities.map(avail => (
+                        <div
+                          key={avail.id}
+                          className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer"
+                          style={{
+                            left: `${((timeToMinutes(avail.start_time) - timeToMinutes(businessSchedule.getTimeRangeForDate(dateStr).minTime)) / (timeToMinutes(businessSchedule.getTimeRangeForDate(dateStr).maxTime) - timeToMinutes(businessSchedule.getTimeRangeForDate(dateStr).minTime))) * 100}%`,
+                            width: `${((timeToMinutes(avail.end_time) - timeToMinutes(avail.start_time)) / (timeToMinutes(businessSchedule.getTimeRangeForDate(dateStr).maxTime) - timeToMinutes(businessSchedule.getTimeRangeForDate(dateStr).minTime))) * 100}%`,
+                            top: '4px',
+                            bottom: '4px'
+                          }}
+                          onClick={() => {
+                            setSelectedAvailability(avail);
+                            setSelectedDate(avail.date);
+                            setSelectedProfessional({ 
+                              id: avail.professional, 
+                              name: avail.professionalName || '' 
+                            });
+                            setDialogOpen(true);
+                          }}
+                        >
+                          {avail.start_time}-{avail.end_time}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
       </div>
 
-      {/* Timeline for each professional */}
-      {visibleProfessionalsData.map((prof) => (
-        <div key={prof.id} className="flex mb-4">
-          {/* Professional name */}
-          <div className="w-48 flex-shrink-0 p-2 text-sm font-medium border-r flex items-center">
-            {prof.name}
-          </div>
-          
-          {/* Timeline grid for the week - only showing business days */}
-          <div className="flex-1 grid relative" style={{ 
-            gridTemplateColumns: `repeat(${weekDays.length}, 1fr)` 
-          }}>
-            {weekDays.map((day, dayIndex) => {
-              const dateStr = format(day, 'yyyy-MM-dd');
-              const { minTime, maxTime } = businessSchedule.getTimeRangeForDate(dateStr);
-              
-              return (
-                <div 
-                  key={dayIndex} 
-                  className="relative h-16 border-r last:border-r-0"
-                >
-                  {/* Background div for the timeline */}
-                  <div className="absolute inset-0 bg-gray-50" />
-                  
-                  {/* Rendered availabilities for this day */}
-                  {prof.availabilities
-                    .filter(avail => avail.date === dateStr)
-                    .map(avail => {
-                      const positioning = calculatePositioning(avail.start_time, avail.end_time, avail.date);
-                      if (!positioning) return null;
-                      
-                      return (
-                        <div 
-                          key={avail.id}
-                          className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer flex items-center justify-between group"
-                          style={{ 
-                            width: positioning.width, 
-                            left: positioning.left,
-                            top: '4px',
-                            bottom: '4px',
-                            zIndex: 10
-                          }}
-                          onClick={() => handleAvailabilityClick(avail)}
-                        >
-                          <div className="flex items-center gap-1 overflow-hidden">
-                            <Clock className="h-3 w-3 flex-shrink-0" />
-                            <span className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                              {avail.start_time}-{avail.end_time}
-                            </span>
-                          </div>
-                          
-                          <div className="hidden group-hover:flex items-center">
-                            <button 
-                              className="p-1 hover:bg-blue-600 rounded-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAvailabilityClick(avail);
-                              }}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </button>
-                            <button 
-                              className="p-1 hover:bg-blue-600 rounded-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteAvailability(avail.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  }
-                  
-                  {/* Clickable area for creating new availability */}
-                  <div 
-                    className="absolute inset-0 cursor-pointer z-5" 
-                    onClick={(e) => {
-                      // Only handle click if target is this div (not a child element)
-                      if (e.currentTarget === e.target) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const relativeX = e.clientX - rect.left;
-                        const percentX = relativeX / rect.width;
-                        
-                        // Calculate time based on click position
-                        const startMinutes = timeToMinutes(minTime);
-                        const endMinutes = timeToMinutes(maxTime);
-                        const totalMinutes = endMinutes - startMinutes;
-                        
-                        const minuteOffset = totalMinutes * percentX;
-                        const clickMinutes = startMinutes + minuteOffset;
-                        
-                        // Round to nearest 30-minute interval
-                        const roundedMinutes = Math.round(clickMinutes / 30) * 30;
-                        const hours = Math.floor(roundedMinutes / 60).toString().padStart(2, "0");
-                        const minutes = (roundedMinutes % 60).toString().padStart(2, "0");
-                        const time = `${hours}:${minutes}`;
-                        
-                        handleTimelineClick(prof.id, prof.name, dateStr, time);
-                      }
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-      
-      {/* Dialog for creating/editing availability */}
       <AvailabilityDialog
         isOpen={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSave={handleSaveAvailability}
-        availability={currentAvailability}
+        onSave={selectedAvailability ? onAvailabilityUpdate : onAvailabilityCreate}
+        availability={selectedAvailability}
         date={selectedDate}
-        professionalId={selectedProfessionalId}
-        professionalName={selectedProfessionalName}
-        isEditing={isEditing}
+        professionalId={selectedProfessional?.id || ''}
+        professionalName={selectedProfessional?.name || ''}
+        isEditing={!!selectedAvailability}
       />
+    </div>
+  );
+};
+
+interface AvailabilityBlockProps {
+  availability: ProfessionalAvailability;
+  date: string;
+  businessSchedule: BusinessSchedule;
+  onUpdate?: (updated: ProfessionalAvailability) => void;
+  onDelete?: (id: string) => void;
+}
+
+const AvailabilityBlock: React.FC<AvailabilityBlockProps> = ({
+  availability,
+  date,
+  businessSchedule,
+  onUpdate,
+  onDelete
+}) => {
+  const { minTime, maxTime } = businessSchedule.getTimeRangeForDate(date);
+  
+  const startMinutes = timeToMinutes(availability.start_time);
+  const endMinutes = timeToMinutes(availability.end_time);
+  const dayStartMinutes = timeToMinutes(minTime);
+  const dayEndMinutes = timeToMinutes(maxTime);
+  const totalMinutes = dayEndMinutes - dayStartMinutes;
+  
+  const left = `${((startMinutes - dayStartMinutes) / totalMinutes) * 100}%`;
+  const width = `${((endMinutes - startMinutes) / totalMinutes) * 100}%`;
+
+  return (
+    <div 
+      className="absolute bg-blue-500 text-white text-xs p-1 rounded opacity-90 hover:opacity-100 cursor-pointer flex items-center justify-between group"
+      style={{ 
+        left,
+        width,
+        top: '4px',
+        bottom: '4px',
+        zIndex: 10
+      }}
+    >
+      <div className="flex items-center gap-1 overflow-hidden">
+        <Clock className="h-3 w-3 flex-shrink-0" />
+        <span className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+          {availability.start_time}-{availability.end_time}
+        </span>
+      </div>
+      
+      <div className="hidden group-hover:flex items-center">
+        <button 
+          className="p-1 hover:bg-blue-600 rounded-sm"
+          onClick={() => onUpdate?.(availability)}
+        >
+          <Edit className="h-3 w-3" />
+        </button>
+        <button 
+          className="p-1 hover:bg-blue-600 rounded-sm"
+          onClick={() => onDelete?.(availability.id)}
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
     </div>
   );
 };
@@ -866,36 +810,82 @@ const Turnos = () => {
   const [weekStart, setWeekStart] = useState<Date>(
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
-  const [availabilities, setAvailabilities] = useState<ProfessionalAvailability[]>(generateMockAvailability());
+  const [availabilities, setAvailabilities] = useState<ProfessionalAvailability[]>([]);
   const [patterns, setPatterns] = useState<AvailabilityPattern[]>(generateMockPatterns());
   const [createPatternsOpen, setCreatePatternsOpen] = useState(false);
   const [createPatternOpen, setCreatePatternOpen] = useState(false);
   const [editPatternId, setEditPatternId] = useState<string | null>(null);
-  const [apiData, setApiData] = useState<BusinessScheduleData>(mockApiResponse);
+  const [apiData, setApiData] = useState<BusinessScheduleData>({
+    exceptions: [],
+    business_availability: [],
+    shifts: []
+  });
   
+  const { isAuthenticated, currentBusiness } = useAuth();
+  const navigate = useNavigate();
+  const businessId = currentBusiness?.business_id;
+  
+  const { professionals, loading: professionalsLoading, fetchProfessionals } = useProfessional();
+  
+  // Cargar profesionales al montar el componente
+  useEffect(() => {
+    if (businessId) {
+      fetchProfessionals(businessId);
+    }
+  }, [businessId]);
+
+  // Actualizar visibleProfessionals cuando se cargan los profesionales
+  useEffect(() => {
+    if (professionals.length > 0) {
+      setVisibleProfessionals(professionals.map(p => p.professional_id.toString()));
+    }
+  }, [professionals]);
+
+  // Simple fetch al cargar el componente
+  useEffect(() => {
+    console.log('Fetching schedule for business:', businessId);
+    
+    const fetchSchedule = async () => {
+      try {
+        const start_date = format(weekStart, "yyyy-MM-dd'T'00:00:00");
+        const end_date = format(endOfWeek(weekStart, { weekStartsOn: 1 }), "yyyy-MM-dd'T'23:59:59");
+
+        console.log('Fetching with dates:', { start_date, end_date });
+
+        const response = await axios.get(
+          ENDPOINTS.SHIFTS(businessId), {
+            params: {
+              start_date,
+              end_date
+            },
+            headers: {
+              'Authorization': `Token ${localStorage.getItem('token')}`
+            }
+          }
+        );
+
+        console.log('API Response:', response.data);
+        setApiData(response.data);
+        const apiAvailabilities = convertShiftsToAvailabilities(response.data.shifts || []);
+        setAvailabilities(apiAvailabilities);
+
+      } catch (error) {
+        console.error('Error fetching schedule:', error);
+        toast.error('Error al cargar los turnos');
+      }
+    };
+
+    if (businessId) {
+      fetchSchedule();
+    }
+  }, [businessId, weekStart]);
+
   // Create business schedule from API data
   const businessSchedule = new BusinessSchedule(apiData);
   
-  // Mock professionals data
-  const professionals = [
-    { id: "prof1", name: "María García" },
-    { id: "prof2", name: "Juan Pérez" },
-    { id: "prof3", name: "Sofia Rodríguez" }
-  ];
-  
   const [visibleProfessionals, setVisibleProfessionals] = useState<string[]>(
-    professionals.map(p => p.id)
+    professionals.map(p => p.professional_id.toString())
   );
-
-  useEffect(() => {
-    // Simulate API call to get the data
-    // In a real app, you would call your API here
-    setApiData(mockApiResponse);
-    
-    // Convert shifts to availabilities
-    const apiAvailabilities = convertShiftsToAvailabilities(mockApiResponse.shifts);
-    setAvailabilities([...generateMockAvailability(), ...apiAvailabilities]);
-  }, []);
 
   const handlePreviousWeek = () => {
     setWeekStart(subWeeks(weekStart, 1));
@@ -925,7 +915,7 @@ const Turnos = () => {
         id: `pattern-${Date.now()}`,
         professional: patternData.professional || null,
         professionalName: patternData.professional 
-          ? professionals.find(p => p.id === patternData.professional)?.name 
+          ? professionals.find(p => p.professional_id.toString() === patternData.professional)?.name 
           : undefined,
         name: patternData.name || "Nueva plantilla",
         start_date: patternData.start_date || format(new Date(), 'yyyy-MM-dd'),
@@ -960,13 +950,13 @@ const Turnos = () => {
         // If pattern is for a specific professional or for all
         const professionalsToApply = pattern.professional 
           ? [pattern.professional] 
-          : professionals.map(p => p.id);
+          : professionals.map(p => p.professional_id.toString());
         
         for (const profId of professionalsToApply) {
           newAvailabilities.push({
             id: `avail-${profId}-${format(currentDate, 'yyyy-MM-dd')}-${Date.now()}`,
             professional: profId,
-            professionalName: professionals.find(p => p.id === profId)?.name,
+            professionalName: professionals.find(p => p.professional_id.toString() === profId)?.name,
             date: format(currentDate, 'yyyy-MM-dd'),
             start_time: pattern.start_time,
             end_time: pattern.end_time
@@ -982,20 +972,99 @@ const Turnos = () => {
     toast.success("Turnos creados correctamente");
   };
 
-  const handleCreateAvailability = (newAvail: ProfessionalAvailability) => {
-    const generatedId = `avail-${newAvail.professional}-${newAvail.date}-${Date.now()}`;
-    const availabilityWithId = { ...newAvail, id: generatedId };
-    setAvailabilities([...availabilities, availabilityWithId]);
+  const handleCreateAvailability = async (newAvail: ProfessionalAvailability) => {
+    if (!businessId) return;
+
+    try {
+      const data = {
+        shifts: [{
+          professional_id: newAvail.professional,
+          datetime_start: `${newAvail.date}T${newAvail.start_time}:00Z`,
+          datetime_end: `${newAvail.date}T${newAvail.end_time}:00Z`
+        }]
+      };
+
+      const response = await axios.post(
+        ENDPOINTS.SHIFTS_CREATE(businessId),
+        data,
+        {
+          headers: {
+            'Authorization': `Token ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      // Actualizar el estado local con la respuesta del servidor
+      const createdShift = response.data.shifts[0];  // Asumimos que devuelve el array de shifts
+      setAvailabilities([...availabilities, {
+        id: createdShift.id,
+        professional: createdShift.professional_id.toString(),
+        professionalName: createdShift.professional_name,
+        date: format(parseISO(createdShift.datetime_start), 'yyyy-MM-dd'),
+        start_time: format(parseISO(createdShift.datetime_start), 'HH:mm'),
+        end_time: format(parseISO(createdShift.datetime_end), 'HH:mm')
+      }]);
+
+      toast.success('Turno creado correctamente');
+    } catch (error) {
+      console.error('Error creating shift:', error);
+      toast.error('Error al crear el turno');
+    }
   };
   
-  const handleUpdateAvailability = (updated: ProfessionalAvailability) => {
-    setAvailabilities(availabilities.map(avail => 
-      avail.id === updated.id ? updated : avail
-    ));
+  const handleUpdateAvailability = async (updated: ProfessionalAvailability) => {
+    if (!businessId) return;
+
+    try {
+      const data = {
+        professional: updated.professional,
+        start_time: updated.start_time,
+        end_time: updated.end_time
+      };
+
+      await axios.put(
+        ENDPOINTS.SHIFT_UPDATE(businessId, updated.id),
+        data,
+        {
+          headers: {
+            'Authorization': `Token ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      // Actualizar el estado local
+      setAvailabilities(availabilities.map(avail =>
+        avail.id === updated.id ? updated : avail
+      ));
+
+      toast.success('Turno actualizado correctamente');
+    } catch (error) {
+      console.error('Error updating shift:', error);
+      toast.error('Error al actualizar el turno');
+    }
   };
   
-  const handleDeleteAvailability = (id: string) => {
-    setAvailabilities(availabilities.filter(avail => avail.id !== id));
+  const handleDeleteAvailability = async (id: string) => {
+    if (!businessId) return;
+
+    try {
+      // Llamada directa al endpoint de eliminación
+      await axios.delete(
+        ENDPOINTS.SHIFT_DELETE(businessId, id),
+        {
+          headers: {
+            'Authorization': `Token ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      // Si la llamada es exitosa, actualizamos el estado local
+      setAvailabilities(availabilities.filter(avail => avail.id !== id));
+      toast.success('Turno eliminado correctamente');
+    } catch (error) {
+      console.error('Error deleting shift:', error);
+      toast.error('Error al eliminar el turno');
+    }
   };
 
   return (
@@ -1088,12 +1157,12 @@ const Turnos = () => {
                   <div className="flex flex-wrap gap-2 mt-4">
                     {professionals.map(prof => (
                       <label 
-                        key={prof.id}
+                        key={prof.professional_id}
                         className="flex items-center gap-2 cursor-pointer"
                       >
                         <Switch
-                          checked={visibleProfessionals.includes(prof.id)}
-                          onCheckedChange={() => toggleProfessionalVisibility(prof.id)}
+                          checked={visibleProfessionals.includes(prof.professional_id.toString())}
+                          onCheckedChange={() => toggleProfessionalVisibility(prof.professional_id.toString())}
                         />
                         <span className="text-sm font-medium">{prof.name}</span>
                       </label>

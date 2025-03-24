@@ -47,33 +47,7 @@ interface Professional {
   };
 }
 
-// Mock data for professionals
-const mockProfessionals: Professional[] = [
-  { 
-    id: 1, 
-    name: "Ana", 
-    lastName: "García",
-    workingDays: [1, 2, 3, 4, 5], // Monday to Friday
-    schedules: {
-      1: { start: "09:00", end: "17:00" },
-      2: { start: "09:00", end: "17:00" },
-      3: { start: "09:00", end: "17:00" },
-      4: { start: "09:00", end: "17:00" },
-      5: { start: "09:00", end: "14:00" }
-    }
-  },
-  { 
-    id: 2, 
-    name: "Carlos", 
-    lastName: "Rodríguez",
-    workingDays: [1, 3, 5], // Monday, Wednesday, Friday
-    schedules: {
-      1: { start: "10:00", end: "18:00" },
-      3: { start: "10:00", end: "18:00" },
-      5: { start: "10:00", end: "18:00" }
-    }
-  },
-];
+
 
 // Schema for validating professional form
 const professionalSchema = z.object({

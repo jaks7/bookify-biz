@@ -1,4 +1,3 @@
-
 export interface ProfessionalAvailability {
   id: string;
   professional: string;
@@ -57,6 +56,9 @@ export interface ShiftData {
 
 export interface BusinessScheduleData {
   exceptions: any[];
-  business_availability: BusinessAvailability[];
+  business_availability: {
+    biz_date_time_start: string;
+    biz_date_time_end: string;
+  }[];
   shifts: ShiftData[];
 }
