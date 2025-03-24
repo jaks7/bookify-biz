@@ -1,3 +1,4 @@
+
 export interface ProfessionalAvailability {
   id: string;
   professional: string;
@@ -21,11 +22,12 @@ export interface AvailabilityPattern {
 
 // Business hours configuration
 export interface BusinessHours {
+  [key: string]: TimeRange[];
+}
+
+export interface TimeRange {
   start: string; // "09:00"
   end: string; // "20:00"
-  breakStart?: string; // "14:00"
-  breakEnd?: string; // "16:00" 
-  daysOpen: number[]; // [1, 2, 3, 4, 5] for Monday to Friday
 }
 
 // Dialog for creating/editing slots
@@ -56,9 +58,6 @@ export interface ShiftData {
 
 export interface BusinessScheduleData {
   exceptions: any[];
-  business_availability: {
-    biz_date_time_start: string;
-    biz_date_time_end: string;
-  }[];
+  business_availability: BusinessAvailability[];
   shifts: ShiftData[];
 }

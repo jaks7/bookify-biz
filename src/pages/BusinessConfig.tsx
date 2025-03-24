@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useForm } from "react-hook-form";
@@ -5,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import axios from 'axios';
 import { ENDPOINTS } from '@/config/api';
-import { Business } from '@/types/business';
 import { AppSidebarWrapper } from '@/components/layout/AppSidebar';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -26,20 +26,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { 
-  ToggleGroup, 
-  ToggleGroupItem 
-} from "@/components/ui/toggle-group";
 import { Save } from 'lucide-react';
 import { useAuth } from "@/stores/authContext";
 import { toast } from "@/components/ui/use-toast";
+import BusinessHoursEditor from '@/components/calendar/BusinessHoursEditor';
+import { BusinessHours } from '@/types/availability';
+import { Business, BusinessConfig as BusinessConfigType } from '@/types/business';
+import { useAvailabilityStore } from '@/stores/availabilityStore';
 
-// Business types list - actualizar para coincidir con las opciones del backend
+// Business types list
 const businessTypes = [
   { value: 'barberia', label: 'Barbería' },
   { value: 'peluqueria', label: 'Peluquería' },
@@ -54,18 +52,7 @@ const businessTypes = [
   { value: 'otros', label: 'Otros' }
 ];
 
-// Days of the week
-const daysOfWeek = [
-  { value: 0, label: "Dom" },
-  { value: 1, label: "Lun" },
-  { value: 2, label: "Mar" },
-  { value: 3, label: "Mié" },
-  { value: 4, label: "Jue" },
-  { value: 5, label: "Vie" },
-  { value: 6, label: "Sáb" },
-];
-
-// Schema para todo el formulario (mantener el original)
+// Schema para todo el formulario
 const businessConfigSchema = z.object({
   // Pestaña de información básica
   name: z.string().min(1, { message: "El nombre es obligatorio" }),
@@ -80,59 +67,26 @@ const businessConfigSchema = z.object({
   time_advance_cancel_reschedule: z.coerce.number().min(1).max(72).default(12),
   new_clients_can_book: z.boolean().default(true),
   new_clients_ask_sms_confirmation: z.boolean().default(true),
-  working_days: z.array(z.number()).default([1, 2, 3, 4, 5]),
-  working_hours: z.array(z.array(z.coerce.number())).default([[9,0], [13,0], [14,0], [18,0]]),
   public_list_business: z.boolean().default(false),
   public_list_services: z.boolean().default(false),
+  allow_choose_professional: z.boolean().default(false),
+  professional_schedule_enabled: z.boolean().default(false),
 });
 
 type BusinessConfigFormValues = z.infer<typeof businessConfigSchema>;
 
-interface BusinessConfig {
-  uid: string;
-  business: string;
-  days_advance_booking: number;
-  time_advance_cancel_reschedule: number;
-  new_clients_can_book: boolean;
-  new_clients_ask_sms_confirmation: boolean;
-  working_days: number[];
-  working_hours: number[][];
-  public_list_business: boolean;
-  public_list_services: boolean;
-}
-
-interface Business {
-  business_id: string;
-  name: string;
-  address: string;
-  city: string;
-  postal_code: string;
-  cif: string;
-  type_of_business: string;
-  configuration_is_completed: boolean;
-}
-
-// Schema para la información del negocio
-const businessInfoSchema = z.object({
-  name: z.string().min(1, { message: "El nombre es obligatorio" }),
-  type_of_business: z.string().min(1, { message: "El tipo de negocio es obligatorio" }),
-  postal_code: z.string().min(1, { message: "El código postal es obligatorio" }),
-  city: z.string().optional(),
-  cif: z.string().optional(),
-  address: z.string().optional(),
-});
-
-type BusinessInfoFormValues = z.infer<typeof businessInfoSchema>;
-
 export default function BusinessConfig() {
   const { currentBusiness } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [config, setConfig] = useState<BusinessConfig | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
+  const { businessConfig, businessHours, fetchBusinessConfig, updateBusinessConfig } = useAvailabilityStore();
   
-  const form = useForm<z.infer<typeof businessConfigSchema>>({
+  // State for business hours editor
+  const [localBusinessHours, setLocalBusinessHours] = useState<BusinessHours>({});
+  
+  const form = useForm<BusinessConfigFormValues>({
     resolver: zodResolver(businessConfigSchema),
     defaultValues: {
-      // Valores por defecto para ambas pestañas
       name: "",
       type_of_business: "",
       postal_code: "",
@@ -143,10 +97,10 @@ export default function BusinessConfig() {
       time_advance_cancel_reschedule: 12,
       new_clients_can_book: true,
       new_clients_ask_sms_confirmation: true,
-      working_days: [1, 2, 3, 4, 5],
-      working_hours: [[9,0], [13,0], [14,0], [18,0]],
       public_list_business: false,
       public_list_services: false,
+      allow_choose_professional: false,
+      professional_schedule_enabled: false,
     }
   });
 
@@ -157,24 +111,26 @@ export default function BusinessConfig() {
   }, [currentBusiness]);
 
   const loadBusinessAndConfig = async () => {
+    if (!currentBusiness) return;
+    
     try {
       setLoading(true);
       
-      // Cargar información del negocio
-      const businessResponse = await axios.get(
-        ENDPOINTS.BUSINESS_DETAIL(currentBusiness?.business_id)
+      // Load business information
+      const businessResponse = await axios.get<Business>(
+        ENDPOINTS.BUSINESS_DETAIL(currentBusiness.business_id)
       );
+      setBusiness(businessResponse.data);
       
-      // Cargar configuración
-      const configResponse = await axios.get(
-        ENDPOINTS.BUSINESS_CONFIG_DETAIL(currentBusiness?.business_id)
-      );
+      // Load configuration
+      await fetchBusinessConfig(currentBusiness.business_id);
       
-      setConfig(configResponse.data);
+      // Set local business hours state
+      setLocalBusinessHours(businessHours || {});
       
-      // Actualizar el formulario con ambos datos
+      // Update form with both data
       form.reset({
-        // Datos del negocio
+        // Business data
         name: businessResponse.data.name,
         type_of_business: businessResponse.data.type_of_business,
         postal_code: businessResponse.data.postal_code,
@@ -182,15 +138,15 @@ export default function BusinessConfig() {
         cif: businessResponse.data.cif,
         address: businessResponse.data.address,
         
-        // Datos de configuración
-        days_advance_booking: configResponse.data.days_advance_booking,
-        time_advance_cancel_reschedule: configResponse.data.time_advance_cancel_reschedule,
-        new_clients_can_book: configResponse.data.new_clients_can_book,
-        new_clients_ask_sms_confirmation: configResponse.data.new_clients_ask_sms_confirmation,
-        working_days: configResponse.data.working_days,
-        working_hours: configResponse.data.working_hours.map(h => [h[0], h[1]]),
-        public_list_business: configResponse.data.public_list_business,
-        public_list_services: configResponse.data.public_list_services,
+        // Config data
+        days_advance_booking: businessConfig?.days_advance_booking || 30,
+        time_advance_cancel_reschedule: businessConfig?.time_advance_cancel_reschedule || 12,
+        new_clients_can_book: businessConfig?.new_clients_can_book || true,
+        new_clients_ask_sms_confirmation: businessConfig?.new_clients_ask_sms_confirmation || true,
+        public_list_business: businessConfig?.public_list_business || false,
+        public_list_services: businessConfig?.public_list_services || false,
+        allow_choose_professional: businessConfig?.allow_choose_professional || false,
+        professional_schedule_enabled: businessConfig?.professional_schedule_enabled || false,
       });
     } catch (error) {
       console.error("Error loading data:", error);
@@ -204,11 +160,13 @@ export default function BusinessConfig() {
     }
   };
 
-  const onSubmit = async (data: z.infer<typeof businessConfigSchema>) => {
+  const onSubmit = async (data: BusinessConfigFormValues) => {
     if (!currentBusiness) return;
     
     try {
-      // Actualizar información del negocio
+      setLoading(true);
+      
+      // Update business information
       const businessData = {
         name: data.name,
         type_of_business: data.type_of_business,
@@ -223,36 +181,30 @@ export default function BusinessConfig() {
         businessData
       );
       
-      // Actualizar configuración
+      // Update configuration with integrated hours
       const configData = {
         days_advance_booking: data.days_advance_booking,
         time_advance_cancel_reschedule: data.time_advance_cancel_reschedule,
         new_clients_can_book: data.new_clients_can_book,
         new_clients_ask_sms_confirmation: data.new_clients_ask_sms_confirmation,
-        working_days: data.working_days,
-        working_hours: data.working_hours,
         public_list_business: data.public_list_business,
         public_list_services: data.public_list_services,
+        allow_choose_professional: data.allow_choose_professional,
+        professional_schedule_enabled: data.professional_schedule_enabled,
       };
-
-      if (config) {
-        await axios.put(
-          ENDPOINTS.BUSINESS_CONFIG_UPDATE(currentBusiness.business_id),
-          configData
-        );
-      } else {
-        await axios.post(
-          ENDPOINTS.BUSINESS_CONFIG_CREATE(currentBusiness.business_id),
-          configData
-        );
+      
+      const success = await updateBusinessConfig(
+        currentBusiness.business_id, 
+        configData as Partial<BusinessConfigType>,
+        localBusinessHours
+      );
+      
+      if (success) {
+        toast({
+          title: "Éxito",
+          description: "Cambios guardados correctamente"
+        });
       }
-      
-      toast({
-        title: "Éxito",
-        description: "Cambios guardados correctamente"
-      });
-      
-      await loadBusinessAndConfig();
     } catch (error) {
       console.error("Error saving:", error);
       toast({
@@ -260,52 +212,56 @@ export default function BusinessConfig() {
         title: "Error",
         description: "No se pudieron guardar los cambios"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <AppSidebarWrapper>
-      <div className="container mx-auto py-10 px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Configuración del Negocio</h1>
+      <div className="container mx-auto py-6 px-4">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Configuración del Negocio</h1>
           <p className="text-muted-foreground mt-1">
             Configura la información y ajustes de tu negocio
           </p>
         </div>
 
         {loading ? (
-          <div className="flex justify-center my-12">
+          <div className="flex justify-center my-8">
             <p>Cargando...</p>
           </div>
         ) : (
           <>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Tabs defaultValue="basic" className="w-full">
                   <TabsList className="grid w-full md:w-[400px] grid-cols-2">
                     <TabsTrigger value="basic">Información Básica</TabsTrigger>
                     <TabsTrigger value="advanced">Configuración Avanzada</TabsTrigger>
                   </TabsList>
                   
-                  <TabsContent value="basic" className="space-y-6 mt-6">
+                  <TabsContent value="basic" className="space-y-6 mt-4">
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Información del Negocio</CardTitle>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-xl">Información del Negocio</CardTitle>
                         <CardDescription>
                           Datos generales de tu negocio
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Nombre del negocio *</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
+                              <div className="flex flex-col space-y-1">
+                                <FormLabel className="text-sm font-medium">Nombre del negocio *</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -315,22 +271,24 @@ export default function BusinessConfig() {
                           name="type_of_business"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Tipo de negocio *</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona el tipo de negocio" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {businessTypes.map((type) => (
-                                    <SelectItem key={type.value} value={type.value}>
-                                      {type.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
+                              <div className="flex flex-col space-y-1">
+                                <FormLabel className="text-sm font-medium">Tipo de negocio *</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecciona el tipo de negocio" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {businessTypes.map((type) => (
+                                      <SelectItem key={type.value} value={type.value}>
+                                        {type.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -340,11 +298,13 @@ export default function BusinessConfig() {
                           name="postal_code"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Código Postal *</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
+                              <div className="flex flex-col space-y-1">
+                                <FormLabel className="text-sm font-medium">Código Postal *</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -354,11 +314,13 @@ export default function BusinessConfig() {
                           name="city"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Ciudad</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
+                              <div className="flex flex-col space-y-1">
+                                <FormLabel className="text-sm font-medium">Ciudad</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -368,11 +330,13 @@ export default function BusinessConfig() {
                           name="cif"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>CIF</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
+                              <div className="flex flex-col space-y-1">
+                                <FormLabel className="text-sm font-medium">CIF</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -381,50 +345,60 @@ export default function BusinessConfig() {
                           control={form.control}
                           name="address"
                           render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Dirección</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Escribe la dirección completa"
-                                  className="resize-none"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
+                            <FormItem className="md:col-span-2">
+                              <div className="flex flex-col space-y-1">
+                                <FormLabel className="text-sm font-medium">Dirección</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Escribe la dirección completa"
+                                    className="resize-none h-20"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />
                       </CardContent>
                     </Card>
+                    
+                    {/* Business Hours Editor */}
+                    <BusinessHoursEditor 
+                      businessHours={localBusinessHours}
+                      onChange={setLocalBusinessHours}
+                    />
                   </TabsContent>
                   
-                  <TabsContent value="advanced" className="space-y-6 mt-6">
+                  <TabsContent value="advanced" className="space-y-6 mt-4">
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Configuración de Reservas</CardTitle>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-xl">Configuración de Reservas</CardTitle>
                         <CardDescription>
                           Ajustes para reservas y horarios de trabajo
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-6">
+                      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
                           name="days_advance_booking"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Días de antelación para reservas</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1} 
-                                  max={90} 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Máximo 90 días. Predeterminado: 30 días
-                              </FormDescription>
-                              <FormMessage />
+                              <div className="flex flex-col space-y-1">
+                                <FormLabel className="text-sm font-medium">Días de antelación para reservas</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min={1} 
+                                    max={90} 
+                                    {...field} 
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-xs">
+                                  Máximo 90 días (predeterminado: 30)
+                                </FormDescription>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -434,55 +408,21 @@ export default function BusinessConfig() {
                           name="time_advance_cancel_reschedule"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Horas de antelación para cancelar/reprogramar</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1} 
-                                  max={72} 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Mínimo 1 hora. Predeterminado: 12 horas
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <Separator className="my-4" />
-                        
-                        <FormField
-                          control={form.control}
-                          name="working_days"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Días laborables</FormLabel>
-                              <FormControl>
-                                <ToggleGroup 
-                                  type="multiple" 
-                                  className="justify-start"
-                                  value={field.value.map(String)}
-                                  onValueChange={(value) => {
-                                    field.onChange(value.map(v => parseInt(v)));
-                                  }}
-                                >
-                                  {daysOfWeek.map((day) => (
-                                    <ToggleGroupItem 
-                                      key={day.value} 
-                                      value={String(day.value)}
-                                      aria-label={day.label}
-                                    >
-                                      {day.label}
-                                    </ToggleGroupItem>
-                                  ))}
-                                </ToggleGroup>
-                              </FormControl>
-                              <FormDescription>
-                                Selecciona los días en que tu negocio está abierto
-                              </FormDescription>
-                              <FormMessage />
+                              <div className="flex flex-col space-y-1">
+                                <FormLabel className="text-sm font-medium">Horas para cancelar/reprogramar</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min={1} 
+                                    max={72} 
+                                    {...field} 
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-xs">
+                                  Mínimo 1 hora (predeterminado: 12)
+                                </FormDescription>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -490,106 +430,156 @@ export default function BusinessConfig() {
                     </Card>
                     
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Configuración de Clientes</CardTitle>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-xl">Configuración de Clientes</CardTitle>
                         <CardDescription>
                           Ajustes relacionados con los clientes y visibilidad
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-6">
-                        <FormField
-                          control={form.control}
-                          name="new_clients_can_book"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Nuevos clientes pueden reservar
-                                </FormLabel>
-                                <FormDescription>
-                                  Permite que clientes nuevos reserven servicios
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="new_clients_can_book"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-sm">
+                                    Nuevos clientes pueden reservar
+                                  </FormLabel>
+                                  <FormDescription className="text-xs">
+                                    Permite que clientes nuevos reserven servicios
+                                  </FormDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="new_clients_ask_sms_confirmation"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-sm">
+                                    Confirmación SMS para nuevos clientes
+                                  </FormLabel>
+                                  <FormDescription className="text-xs">
+                                    Solicitar confirmación por SMS para nuevos clientes
+                                  </FormDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                         
-                        <FormField
-                          control={form.control}
-                          name="new_clients_ask_sms_confirmation"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Confirmación SMS para nuevos clientes
-                                </FormLabel>
-                                <FormDescription>
-                                  Solicitar confirmación por SMS para nuevos clientes
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="public_list_business"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-sm">
+                                    Listado público del negocio
+                                  </FormLabel>
+                                  <FormDescription className="text-xs">
+                                    Mostrar el negocio en directorios públicos
+                                  </FormDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="public_list_services"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-sm">
+                                    Listado público de servicios
+                                  </FormLabel>
+                                  <FormDescription className="text-xs">
+                                    Mostrar los servicios en directorios públicos
+                                  </FormDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                         
-                        <Separator className="my-4" />
-                        
-                        <FormField
-                          control={form.control}
-                          name="public_list_business"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Listado público del negocio
-                                </FormLabel>
-                                <FormDescription>
-                                  Mostrar el negocio en directorios públicos
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="public_list_services"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Listado público de servicios
-                                </FormLabel>
-                                <FormDescription>
-                                  Mostrar los servicios en directorios públicos
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="allow_choose_professional"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-sm">
+                                    Permitir elegir profesional
+                                  </FormLabel>
+                                  <FormDescription className="text-xs">
+                                    Los clientes pueden elegir el profesional al reservar
+                                  </FormDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="professional_schedule_enabled"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-sm">
+                                    Habilitar horarios por profesional
+                                  </FormLabel>
+                                  <FormDescription className="text-xs">
+                                    Cada profesional puede tener su propio horario
+                                  </FormDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </CardContent>
                     </Card>
                   </TabsContent>

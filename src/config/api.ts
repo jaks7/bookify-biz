@@ -1,3 +1,4 @@
+
 export const API_BASE_URL = 'http://127.0.0.1:8000';
 
 export const ENDPOINTS = {
@@ -47,4 +48,4 @@ export const ENDPOINTS = {
     `${API_BASE_URL}/calendars/${businessId}/shifts/${shiftId}/`,
   EXCEPTIONS_DELETE: (businessId: string, exceptionId: string) => 
     `${API_BASE_URL}/calendars/${businessId}/exceptions/${exceptionId}/delete/`,
-} as const; 
+} as const;

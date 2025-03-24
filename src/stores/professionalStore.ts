@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import axios from 'axios';
 import { ENDPOINTS } from '@/config/api';
@@ -24,4 +25,4 @@ export const useProfessionalStore = create<ProfessionalStore>((set) => ({
       set({ error: 'Error al cargar los profesionales', loading: false });
     }
   },
-})); 
+}));
