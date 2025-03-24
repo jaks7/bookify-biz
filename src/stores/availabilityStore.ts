@@ -1,11 +1,11 @@
 
-import { create } from 'zustand';
+import React, { createContext, useContext, useState } from 'react';
 import axios from 'axios';
 import { ENDPOINTS } from '@/config/api';
 import { BusinessHours } from '@/types/availability';
 import { BusinessConfig } from '@/types/business';
 
-interface AvailabilityState {
+interface AvailabilityContextType {
   businessConfig: BusinessConfig | null;
   businessHours: BusinessHours;
   loading: boolean;
@@ -14,43 +14,43 @@ interface AvailabilityState {
   updateBusinessConfig: (businessId: string, config: Partial<BusinessConfig>, businessHours: BusinessHours) => Promise<boolean>;
 }
 
-export const useAvailabilityStore = create<AvailabilityState>((set, get) => ({
-  businessConfig: null,
-  businessHours: {},
-  loading: false,
-  error: null,
-  
-  fetchBusinessConfig: async (businessId: string) => {
+const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
+
+export const AvailabilityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [businessConfig, setBusinessConfig] = useState<BusinessConfig | null>(null);
+  const [businessHours, setBusinessHours] = useState<BusinessHours>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchBusinessConfig = async (businessId: string) => {
     try {
-      set({ loading: true, error: null });
+      setLoading(true);
+      setError(null);
       const response = await axios.get<BusinessConfig>(ENDPOINTS.BUSINESS_CONFIG_DETAIL(businessId));
       
-      set({ 
-        businessConfig: response.data,
-        businessHours: response.data.business_hours || {},
-        loading: false 
-      });
+      setBusinessConfig(response.data);
+      setBusinessHours(response.data.business_hours || {});
+      setLoading(false);
       
       return response.data;
     } catch (error) {
       console.error('Error fetching business config:', error);
-      set({ 
-        error: 'Error al cargar la configuración', 
-        loading: false 
-      });
+      setError('Error al cargar la configuración');
+      setLoading(false);
     }
-  },
+  };
   
-  updateBusinessConfig: async (businessId: string, config: Partial<BusinessConfig>, businessHours: BusinessHours) => {
+  const updateBusinessConfig = async (businessId: string, config: Partial<BusinessConfig>, businessHours: BusinessHours) => {
     try {
-      set({ loading: true, error: null });
+      setLoading(true);
+      setError(null);
       
       const updatedConfig = {
         ...config,
         business_hours: businessHours
       };
       
-      if (get().businessConfig) {
+      if (businessConfig) {
         await axios.put(
           ENDPOINTS.BUSINESS_CONFIG_UPDATE(businessId),
           updatedConfig
@@ -62,20 +62,39 @@ export const useAvailabilityStore = create<AvailabilityState>((set, get) => ({
         );
       }
       
-      set({ 
-        businessConfig: { ...get().businessConfig, ...updatedConfig } as BusinessConfig,
-        businessHours,
-        loading: false 
-      });
+      setBusinessConfig({ ...businessConfig, ...updatedConfig } as BusinessConfig);
+      setBusinessHours(businessHours);
+      setLoading(false);
       
       return true;
     } catch (error) {
       console.error('Error updating business config:', error);
-      set({ 
-        error: 'Error al actualizar la configuración', 
-        loading: false 
-      });
+      setError('Error al actualizar la configuración');
+      setLoading(false);
       return false;
     }
+  };
+
+  return (
+    <AvailabilityContext.Provider 
+      value={{ 
+        businessConfig, 
+        businessHours, 
+        loading, 
+        error, 
+        fetchBusinessConfig, 
+        updateBusinessConfig 
+      }}
+    >
+      {children}
+    </AvailabilityContext.Provider>
+  );
+};
+
+export const useAvailability = () => {
+  const context = useContext(AvailabilityContext);
+  if (context === undefined) {
+    throw new Error('useAvailability must be used within an AvailabilityProvider');
   }
-}));
+  return context;
+};

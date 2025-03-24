@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,7 +21,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { ENDPOINTS } from '@/config/api';
 import { useAuth } from '@/stores/authContext';
-import { Professional } from '@/types/professional';
+import { Professional as ProfessionalType } from '@/types/professional';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -45,6 +46,9 @@ interface Professional {
       end: string; // Time format: "17:00"
     };
   };
+  professional_id?: number; // Added for compatibility
+  surnames?: string; // Added for compatibility 
+  email?: string; // Added for compatibility
 }
 
 

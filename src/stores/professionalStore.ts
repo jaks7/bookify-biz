@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import axios from 'axios';
 import { ENDPOINTS } from '@/config/api';
@@ -11,7 +10,27 @@ interface ProfessionalStore {
   fetchProfessionals: (businessId: string) => Promise<void>;
 }
 
-export const useProfessionalStore = create<ProfessionalStore>((set) => ({
+function createStore<T>(createState: (set: any, get: any) => T): () => T {
+  let state: T;
+  const listeners: (() => void)[] = [];
+  
+  const setState = (partial: Partial<T> | ((state: T) => Partial<T>)) => {
+    const nextState = typeof partial === 'function' 
+      ? { ...state, ...partial(state) }
+      : { ...state, ...partial };
+    
+    state = nextState as T;
+    listeners.forEach(listener => listener());
+  };
+  
+  const getState = () => state;
+  
+  state = createState(setState, getState);
+  
+  return () => state;
+}
+
+export const useProfessionalStore = createStore<ProfessionalStore>((set) => ({
   professionals: [],
   loading: false,
   error: null,

@@ -16,4 +16,5 @@ export interface Professional {
   professional_id?: number; // Added to support the backend format
   surnames?: string; // Added to support other pages
   email?: string; // Added to support other pages
+  lastName?: string; // Added to support legacy code
 }
