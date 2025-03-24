@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,19 +30,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save } from 'lucide-react';
 import BusinessHoursEditor from '@/components/calendar/BusinessHoursEditor';
 import { BusinessHours } from '@/types/availability';
+import { useAvailability } from '@/stores/availabilityStore';
 
 // Business types list
 const businessTypes = [
-  "Peluquería",
-  "Barbería",
-  "Centro de estética",
-  "Spa",
-  "Centro de masajes",
-  "Clínica dental",
-  "Centro médico",
-  "Gimnasio",
-  "Centro deportivo",
-  "Otros"
+  { value: 'barberia', label: 'Barbería' },
+  { value: 'peluqueria', label: 'Peluquería' },
+  { value: 'psicologia', label: 'Psicología' },
+  { value: 'nutricion', label: 'Nutrición' },
+  { value: 'masajes', label: 'Masajes' },
+  { value: 'fisioterapia', label: 'Fisioterapia' },
+  { value: 'estetica', label: 'Estética' },
+  { value: 'dermatologia', label: 'Dermatología' },
+  { value: 'medicina', label: 'Medicina' },
+  { value: 'odontologia', label: 'Odontología' },
+  { value: 'otros', label: 'Otros' }
 ];
 
 // Form validation schema
@@ -70,9 +72,10 @@ export default function DemoBusinessConfig() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { businessHours, updateBusinessConfig } = useAvailability();
   
   // State for business hours
-  const [businessHours, setBusinessHours] = useState<BusinessHours>({
+  const [localBusinessHours, setLocalBusinessHours] = useState<BusinessHours>({
     "1": [
       { start: "09:00", end: "14:00" },
       { start: "17:00", end: "20:00" }
@@ -95,14 +98,15 @@ export default function DemoBusinessConfig() {
     ],
     "6": [
       { start: "09:00", end: "14:00" }
-    ]
+    ],
+    "7": []
   });
   
   // Mock business data for demo
   const mockBusiness = {
     business_id: businessId || "demo-123",
     name: "Peluquería Demo",
-    type_of_business: "Peluquería",
+    type_of_business: "peluqueria",
     postal_code: "28001",
     city: "Madrid",
     cif: "B12345678",
@@ -198,13 +202,11 @@ export default function DemoBusinessConfig() {
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex flex-col space-y-1">
-                              <FormLabel className="text-sm font-medium">Nombre del negocio *</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </div>
+                            <FormLabel>Nombre del negocio *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nombre del negocio" {...field} />
+                            </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -214,22 +216,20 @@ export default function DemoBusinessConfig() {
                         name="type_of_business"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex flex-col space-y-1">
-                              <FormLabel className="text-sm font-medium">Tipo de negocio *</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona el tipo de negocio" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {businessTypes.map(type => (
-                                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </div>
+                            <FormLabel>Tipo de negocio *</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecciona el tipo de negocio" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {businessTypes.map(type => (
+                                  <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -239,13 +239,11 @@ export default function DemoBusinessConfig() {
                         name="postal_code"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex flex-col space-y-1">
-                              <FormLabel className="text-sm font-medium">Código Postal *</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </div>
+                            <FormLabel>Código Postal *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Código postal" {...field} />
+                            </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -255,13 +253,11 @@ export default function DemoBusinessConfig() {
                         name="city"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex flex-col space-y-1">
-                              <FormLabel className="text-sm font-medium">Ciudad</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </div>
+                            <FormLabel>Ciudad</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ciudad" {...field} />
+                            </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -271,13 +267,11 @@ export default function DemoBusinessConfig() {
                         name="cif"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex flex-col space-y-1">
-                              <FormLabel className="text-sm font-medium">CIF</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </div>
+                            <FormLabel>CIF</FormLabel>
+                            <FormControl>
+                              <Input placeholder="CIF" {...field} />
+                            </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -287,17 +281,15 @@ export default function DemoBusinessConfig() {
                         name="address"
                         render={({ field }) => (
                           <FormItem className="md:col-span-2">
-                            <div className="flex flex-col space-y-1">
-                              <FormLabel className="text-sm font-medium">Dirección</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Escribe la dirección completa"
-                                  className="resize-none h-20"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </div>
+                            <FormLabel>Dirección</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Escribe la dirección completa"
+                                className="resize-none h-20"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -305,10 +297,20 @@ export default function DemoBusinessConfig() {
                   </Card>
                   
                   {/* Business Hours Editor */}
-                  <BusinessHoursEditor 
-                    businessHours={businessHours}
-                    onChange={setBusinessHours}
-                  />
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-xl">Horario Comercial</CardTitle>
+                      <CardDescription>
+                        Define los horarios de apertura de tu negocio
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <BusinessHoursEditor 
+                        businessHours={localBusinessHours}
+                        onChange={setLocalBusinessHours}
+                      />
+                    </CardContent>
+                  </Card>
                 </TabsContent>
                 
                 <TabsContent value="advanced" className="space-y-6 mt-4">
@@ -325,21 +327,19 @@ export default function DemoBusinessConfig() {
                         name="days_advance_booking"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex flex-col space-y-1">
-                              <FormLabel className="text-sm font-medium">Días de antelación para reservas</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1} 
-                                  max={90} 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs">
-                                Máximo 90 días (predeterminado: 30)
-                              </FormDescription>
-                              <FormMessage />
-                            </div>
+                            <FormLabel>Días de antelación para reservas</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min={1} 
+                                max={90} 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Máximo 90 días (predeterminado: 30)
+                            </FormDescription>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -349,21 +349,19 @@ export default function DemoBusinessConfig() {
                         name="time_advance_cancel_reschedule"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex flex-col space-y-1">
-                              <FormLabel className="text-sm font-medium">Horas para cancelar/reprogramar</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1} 
-                                  max={72} 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs">
-                                Mínimo 1 hora (predeterminado: 12)
-                              </FormDescription>
-                              <FormMessage />
-                            </div>
+                            <FormLabel>Horas para cancelar/reprogramar</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min={1} 
+                                max={72} 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Mínimo 1 hora (predeterminado: 12)
+                            </FormDescription>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -385,10 +383,10 @@ export default function DemoBusinessConfig() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-sm">
+                                <FormLabel>
                                   Nuevos clientes pueden reservar
                                 </FormLabel>
-                                <FormDescription className="text-xs">
+                                <FormDescription>
                                   Permite que clientes nuevos reserven servicios
                                 </FormDescription>
                               </div>
@@ -408,10 +406,10 @@ export default function DemoBusinessConfig() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-sm">
+                                <FormLabel>
                                   Confirmación SMS para nuevos clientes
                                 </FormLabel>
-                                <FormDescription className="text-xs">
+                                <FormDescription>
                                   Solicitar confirmación por SMS para nuevos clientes
                                 </FormDescription>
                               </div>
@@ -433,10 +431,10 @@ export default function DemoBusinessConfig() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-sm">
+                                <FormLabel>
                                   Listado público del negocio
                                 </FormLabel>
-                                <FormDescription className="text-xs">
+                                <FormDescription>
                                   Mostrar el negocio en directorios públicos
                                 </FormDescription>
                               </div>
@@ -456,10 +454,10 @@ export default function DemoBusinessConfig() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-sm">
+                                <FormLabel>
                                   Listado público de servicios
                                 </FormLabel>
-                                <FormDescription className="text-xs">
+                                <FormDescription>
                                   Mostrar los servicios en directorios públicos
                                 </FormDescription>
                               </div>
@@ -481,10 +479,10 @@ export default function DemoBusinessConfig() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-sm">
+                                <FormLabel>
                                   Permitir elegir profesional
                                 </FormLabel>
-                                <FormDescription className="text-xs">
+                                <FormDescription>
                                   Los clientes pueden elegir el profesional al reservar
                                 </FormDescription>
                               </div>
@@ -504,10 +502,10 @@ export default function DemoBusinessConfig() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-sm">
+                                <FormLabel>
                                   Habilitar horarios por profesional
                                 </FormLabel>
-                                <FormDescription className="text-xs">
+                                <FormDescription>
                                   Cada profesional puede tener su propio horario
                                 </FormDescription>
                               </div>
