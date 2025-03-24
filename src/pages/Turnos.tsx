@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { format, addDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval, parse } from "date-fns";
+import { format, addDays, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval, parse, addHours } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
   ArrowLeft, 
@@ -252,12 +252,12 @@ const getBusinessHoursFromAPI = (apiData: BusinessScheduleData): Map<string, {st
 // Convertir turnos de la API
 const convertShiftsToAvailabilities = (shifts: ShiftData[] = []): ProfessionalAvailability[] => {
   return shifts.map(shift => ({
-    id: shift.id,
-    professional: shift.professional_id.toString(),
-    professionalName: shift.professional_name,
+    id: shift.availability_id,
+    professional: shift.professional.toString(),
+    professionalName: shift.professional_name || '',
     date: format(parseISO(shift.datetime_start), 'yyyy-MM-dd'),
-    start_time: format(parseISO(shift.datetime_start), 'HH:mm'),
-    end_time: format(parseISO(shift.datetime_end), 'HH:mm')
+    start_time: shift.datetime_start.split('T')[1].substring(0, 5),  // Extraer solo HH:mm
+    end_time: shift.datetime_end.split('T')[1].substring(0, 5)       // Extraer solo HH:mm
   }));
 };
 
