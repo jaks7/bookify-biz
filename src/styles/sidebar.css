@@ -12,27 +12,13 @@
   width: 16rem;
 }
 
-/* Text transition */
-.sidebar-text {
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-
-.sidebar-text-hidden {
-  opacity: 0;
-  visibility: hidden;
-  display: none;
-}
-
-/* Icon container */
-.sidebar-icon-container {
-  min-width: 2rem;
-  display: flex;
-  justify-content: center;
-}
-
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .sidebar-collapsed {
     width: 4rem;
+  }
+  
+  .sidebar-expanded {
+    width: 16rem;
   }
 }

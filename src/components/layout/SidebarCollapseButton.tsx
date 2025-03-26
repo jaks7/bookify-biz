@@ -17,7 +17,7 @@ const SidebarCollapseButton: React.FC<SidebarCollapseButtonProps> = ({
       variant="ghost"
       size="icon"
       onClick={toggleCollapse}
-      className="absolute -right-4 top-6 h-8 w-8 rounded-full border bg-background shadow-md"
+      className="absolute right-2 bottom-4 h-8 w-8 rounded-full border bg-background shadow-md"
       aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
     >
       {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
