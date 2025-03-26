@@ -154,9 +154,15 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
             </Link>
           </div>
           
-          {/* Common navigation items */}
+          {/* Sidebar navigation */}
           <nav className="flex-1 px-3 py-4 overflow-y-auto">
+            {/* General section with label */}
             <div className="mb-6">
+              {!isCollapsed && (
+                <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  General
+                </h3>
+              )}
               <ul className="space-y-2">
                 {commonItems.map((item) => (
                   <li key={item.path}>
@@ -178,43 +184,66 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
               </ul>
             </div>
             
-            {/* Business selector (only show in regular mode, not demo) */}
-            {!isDemoMode && !isCollapsed && availableBusinesses && availableBusinesses.length > 0 && (
-              <div className="mb-6 px-2 py-2 border-t border-b border-gray-100">
-                <button
-                  className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  onClick={() => setIsBusinessListOpen(!isBusinessListOpen)}
-                >
-                  <span className="text-sm font-medium truncate">
-                    {currentBusiness?.name || "Seleccionar negocio"}
-                  </span>
-                  <ChevronDown size={16} className={`transform transition-transform ${isBusinessListOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {isBusinessListOpen && (
-                  <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-30">
-                    {availableBusinesses.map((business) => (
-                      <button
-                        key={business.business_id}
-                        className={`w-full text-left p-2 text-sm hover:bg-gray-50 ${
-                          currentBusiness?.business_id === business.business_id ? 'bg-horaLibre-50 text-horaLibre-600' : ''
-                        }`}
-                        onClick={() => {
-                          switchBusiness(business.business_id);
-                          setIsBusinessListOpen(false);
-                        }}
-                      >
-                        {business.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Section divider */}
+            <div className="my-4 border-t border-gray-200"></div>
             
-            {/* Business-specific navigation items */}
+            {/* Business section with label and business selector */}
             {!isDemoMode && (
-              <div>
+              <div className="mb-6">
+                {/* Business section label */}
+                {!isCollapsed && (
+                  <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Negocio Actual
+                  </h3>
+                )}
+                
+                {/* Business selector */}
+                <div className="px-2 mb-4">
+                  <button
+                    className={cn(
+                      "w-full flex items-center rounded-lg border border-gray-200 p-2 mb-2 text-left",
+                      isCollapsed ? "justify-center" : "justify-between",
+                      "hover:bg-gray-50 transition-colors"
+                    )}
+                    onClick={() => !isCollapsed && setIsBusinessListOpen(!isBusinessListOpen)}
+                  >
+                    {isCollapsed ? (
+                      <Briefcase size={20} className="text-gray-700" />
+                    ) : (
+                      <>
+                        <span className="font-medium truncate">
+                          {currentBusiness?.name || "Seleccionar negocio"}
+                        </span>
+                        <ChevronDown 
+                          size={16} 
+                          className={`transform transition-transform ${isBusinessListOpen ? 'rotate-180' : ''}`}
+                        />
+                      </>
+                    )}
+                  </button>
+                  
+                  {/* Dropdown for business selection */}
+                  {isBusinessListOpen && !isCollapsed && availableBusinesses && availableBusinesses.length > 0 && (
+                    <div className="mt-1 bg-white rounded-lg shadow-lg border border-gray-100 absolute z-30 w-[calc(100%-1.5rem)] max-w-[14rem]">
+                      {availableBusinesses.map((business) => (
+                        <button
+                          key={business.business_id}
+                          className={`w-full text-left p-2 text-sm hover:bg-gray-50 ${
+                            currentBusiness?.business_id === business.business_id ? 'bg-horaLibre-50 text-horaLibre-600' : ''
+                          }`}
+                          onClick={() => {
+                            switchBusiness(business);
+                            setIsBusinessListOpen(false);
+                          }}
+                        >
+                          {business.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Business-specific navigation items */}
                 <ul className="space-y-2">
                   {businessItems.map((item) => (
                     <li key={item.path}>
