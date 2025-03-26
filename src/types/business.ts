@@ -1,13 +1,16 @@
+
 export interface Business {
-  uid: string;
+  id?: string;
+  uid?: string;
   name: string;
-  address: string;
-  city: string;
-  postal_code: string;
-  cif: string;
-  type_of_business: string;
+  address?: string;
+  city?: string;
+  postal_code?: string;
+  cif?: string;
+  type_of_business?: string;
   main_contact_user?: string;
   configuration_is_completed?: boolean;
+  business_id?: string;
 }
 
 export interface BusinessConfig {

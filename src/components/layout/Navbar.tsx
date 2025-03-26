@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Home, Users, PriceTag } from 'lucide-react';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -24,9 +24,9 @@ const Navbar = () => {
   }, [location.pathname]);
 
   const navLinks = [
-    { name: 'Inicio', path: '/' },
-    { name: 'Afiliados', path: '/afiliados' },
-    { name: 'Precios', path: '/precios' },
+    { name: 'Inicio', path: '/', icon: <Home size={20} /> },
+    { name: 'Afiliados', path: '/afiliados', icon: <Users size={20} /> },
+    { name: 'Precios', path: '/precios', icon: <PriceTag size={20} /> },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -39,7 +39,7 @@ const Navbar = () => {
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <Link to="/" className="flex items-center">
-          <span className="text-2xl font-bold text-gradient">Hora</span>
+          <span className="text-2xl font-bold text-horaLibre-500">Hora</span>
           <span className="ml-1 text-2xl font-bold">Libre</span>
         </Link>
 
@@ -49,11 +49,12 @@ const Navbar = () => {
             <Link
               key={link.path}
               to={link.path}
-              className={`font-medium transition-colors hover:text-horaLibre-500 ${
+              className={`font-medium transition-colors hover:text-horaLibre-500 flex items-center gap-2 ${
                 isActive(link.path) ? 'text-horaLibre-600' : 'text-gray-600'
               }`}
             >
-              {link.name}
+              {link.icon}
+              <span>{link.name}</span>
             </Link>
           ))}
         </div>
@@ -76,6 +77,7 @@ const Navbar = () => {
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="md:hidden text-gray-700 focus:outline-none"
+          aria-label="Toggle mobile menu"
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -89,11 +91,12 @@ const Navbar = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`font-medium py-2 transition-colors hover:text-horaLibre-500 ${
+                className={`font-medium py-2 transition-colors hover:text-horaLibre-500 flex items-center gap-2 ${
                   isActive(link.path) ? 'text-horaLibre-600' : 'text-gray-600'
                 }`}
               >
-                {link.name}
+                {link.icon}
+                <span>{link.name}</span>
               </Link>
             ))}
             <div className="pt-4 border-t border-gray-100 flex flex-col space-y-3">
