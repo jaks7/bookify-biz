@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from '@/hooks/use-mobile';
 import "@/styles/sidebar.css";
 
-// Define the AppSidebar component
+// Define the side navigation component
 const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; toggleCollapse: () => void }) => {
   const { currentBusiness, availableBusinesses, switchBusiness } = useAuth();
   const location = useLocation();
@@ -123,7 +123,6 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
   
   // Determine if we're in demo mode based on the path
   const isDemoMode = location.pathname.startsWith('/demo');
-  const navItems = isDemoMode ? demoItems : [...commonItems, ...businessItems];
   
   // Mobile sidebar toggle button
   const MobileToggleButton = () => (
@@ -155,61 +154,113 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
             </Link>
           </div>
           
-          {/* Business selector (only show in regular mode, not demo) */}
-          {!isDemoMode && !isCollapsed && availableBusinesses && availableBusinesses.length > 0 && (
-            <div className="p-3 border-b border-gray-100">
-              <button
-                className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                onClick={() => setIsBusinessListOpen(!isBusinessListOpen)}
-              >
-                <span className="text-sm font-medium truncate">
-                  {currentBusiness?.name || "Seleccionar negocio"}
-                </span>
-                <ChevronDown size={16} className={`transform transition-transform ${isBusinessListOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isBusinessListOpen && (
-                <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-30">
-                  {availableBusinesses.map((business) => (
-                    <button
-                      key={business.business_id}
-                      className={`w-full text-left p-2 text-sm hover:bg-gray-50 ${
-                        currentBusiness?.business_id === business.business_id ? 'bg-horaLibre-50 text-horaLibre-600' : ''
-                      }`}
-                      onClick={() => {
-                        switchBusiness(business);
-                        setIsBusinessListOpen(false);
-                      }}
-                    >
-                      {business.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Sidebar navigation links */}
+          {/* Common navigation items */}
           <nav className="flex-1 px-3 py-4 overflow-y-auto">
-            <ul className="space-y-2">
-              {navItems.map((item) => (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={cn(
-                      "flex items-center p-2 rounded-lg transition-colors",
-                      location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))
-                        ? "bg-horaLibre-50 text-horaLibre-600"
-                        : "text-gray-600 hover:bg-gray-100",
-                      isCollapsed ? "justify-center" : "justify-start"
-                    )}
-                  >
-                    <span className="flex items-center justify-center">{item.icon}</span>
-                    {!isCollapsed && <span className="ml-3">{item.title}</span>}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div className="mb-6">
+              <ul className="space-y-2">
+                {commonItems.map((item) => (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      className={cn(
+                        "flex items-center p-2 rounded-lg transition-colors",
+                        location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))
+                          ? "bg-horaLibre-50 text-horaLibre-600"
+                          : "text-gray-600 hover:bg-gray-100",
+                        isCollapsed ? "justify-center" : "justify-start"
+                      )}
+                    >
+                      <span className="flex items-center justify-center">{item.icon}</span>
+                      {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            {/* Business selector (only show in regular mode, not demo) */}
+            {!isDemoMode && !isCollapsed && availableBusinesses && availableBusinesses.length > 0 && (
+              <div className="mb-6 px-2 py-2 border-t border-b border-gray-100">
+                <button
+                  className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  onClick={() => setIsBusinessListOpen(!isBusinessListOpen)}
+                >
+                  <span className="text-sm font-medium truncate">
+                    {currentBusiness?.name || "Seleccionar negocio"}
+                  </span>
+                  <ChevronDown size={16} className={`transform transition-transform ${isBusinessListOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isBusinessListOpen && (
+                  <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-30">
+                    {availableBusinesses.map((business) => (
+                      <button
+                        key={business.business_id}
+                        className={`w-full text-left p-2 text-sm hover:bg-gray-50 ${
+                          currentBusiness?.business_id === business.business_id ? 'bg-horaLibre-50 text-horaLibre-600' : ''
+                        }`}
+                        onClick={() => {
+                          switchBusiness(business.business_id);
+                          setIsBusinessListOpen(false);
+                        }}
+                      >
+                        {business.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Business-specific navigation items */}
+            {!isDemoMode && (
+              <div>
+                <ul className="space-y-2">
+                  {businessItems.map((item) => (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        className={cn(
+                          "flex items-center p-2 rounded-lg transition-colors",
+                          location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))
+                            ? "bg-horaLibre-50 text-horaLibre-600"
+                            : "text-gray-600 hover:bg-gray-100",
+                          isCollapsed ? "justify-center" : "justify-start"
+                        )}
+                      >
+                        <span className="flex items-center justify-center">{item.icon}</span>
+                        {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {/* Demo mode items */}
+            {isDemoMode && (
+              <div>
+                <ul className="space-y-2">
+                  {demoItems.map((item) => (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        className={cn(
+                          "flex items-center p-2 rounded-lg transition-colors",
+                          location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))
+                            ? "bg-horaLibre-50 text-horaLibre-600"
+                            : "text-gray-600 hover:bg-gray-100",
+                          isCollapsed ? "justify-center" : "justify-start"
+                        )}
+                      >
+                        <span className="flex items-center justify-center">{item.icon}</span>
+                        {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </nav>
           
           {/* Collapse button - only show on desktop */}

@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { ENDPOINTS } from '@/config/api';
@@ -15,6 +16,10 @@ interface Business {
   name: string;
   type_of_business: string;
   configuration_is_completed: boolean;
+  address?: string;
+  city?: string;
+  postal_code?: string;
+  cif?: string;
 }
 
 interface User {
@@ -35,7 +40,7 @@ interface AuthContextType extends AuthState {
   login: (credentials: { email: string; password: string }) => Promise<void>;
   logout: () => void;
   fetchUserData: () => Promise<any>;
-  switchBusiness: (businessId: string) => void;
+  switchBusiness: (businessIdOrObject: string | Business) => void;
 }
 
 // Create context
@@ -164,8 +169,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const switchBusiness = async (businessId: string) => {
+  const switchBusiness = async (businessIdOrObject: string | Business) => {
     try {
+      const businessId = typeof businessIdOrObject === 'string' 
+        ? businessIdOrObject 
+        : businessIdOrObject.business_id;
+        
       await axios.put(ENDPOINTS.ME_UPDATE, {
         current_business_id: businessId
       });
