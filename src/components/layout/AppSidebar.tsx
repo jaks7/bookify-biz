@@ -1,23 +1,126 @@
 
 import React, { useState } from 'react';
-import { Home, Calendar, Users, Settings, Tag } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  Calendar, 
+  List, 
+  Clock, 
+  Users, 
+  ShoppingBag, 
+  User, 
+  Cog, 
+  BarChart4, 
+  Briefcase, 
+  UserRound,
+  ChevronDown
+} from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import SidebarCollapseButton from './SidebarCollapseButton';
+import { useAuth } from '@/stores/authContext';
 import { cn } from "@/lib/utils";
 import "@/styles/sidebar.css";
 
-// Define the sidebar links
-const sidebarLinks = [
-  { name: 'Dashboard', path: '/demo/dashboard', icon: <Home size={20} /> },
-  { name: 'Agenda', path: '/demo/agenda', icon: <Calendar size={20} /> },
-  { name: 'Profesionales', path: '/demo/professionals', icon: <Users size={20} /> },
-  { name: 'Servicios', path: '/demo/services', icon: <Tag size={20} /> },
-  { name: 'Configuración', path: '/demo/configuracion', icon: <Settings size={20} /> },
-];
-
-// Define the AppSidebar component
+// Define the AppSidebar component first to avoid the initialization error
 const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; toggleCollapse: () => void }) => {
+  const { currentBusiness, availableBusinesses, switchBusiness } = useAuth();
   const location = useLocation();
+  const [isBusinessListOpen, setIsBusinessListOpen] = useState(false);
+  
+  // Common navigation items
+  const commonItems = [
+    {
+      title: "Cuadro de mando",
+      path: "/dashboard",
+      icon: <LayoutDashboard size={20} />
+    },
+    {
+      title: "Negocios",
+      path: "/businesses",
+      icon: <Briefcase size={20} />
+    },
+    {
+      title: "Mi perfil",
+      path: "/mi_perfil",
+      icon: <UserRound size={20} />
+    }
+  ];
+  
+  // Business-specific navigation items
+  const businessItems = [
+    {
+      title: "Calendario",
+      path: "/calendar",
+      icon: <Calendar size={20} />
+    },
+    {
+      title: "Agenda",
+      path: "/agenda",
+      icon: <List size={20} />
+    },
+    {
+      title: "Turnos",
+      path: "/turnos",
+      icon: <Clock size={20} />
+    },
+    {
+      title: "Profesionales",
+      path: "/professionals",
+      icon: <Users size={20} />
+    },
+    {
+      title: "Servicios",
+      path: "/services",
+      icon: <ShoppingBag size={20} />
+    },
+    {
+      title: "Clientes",
+      path: "/clients",
+      icon: <User size={20} />
+    },
+    {
+      title: "Configuración",
+      path: "/configuracion",
+      icon: <Cog size={20} />
+    },
+    {
+      title: "Inteligencia de negocio",
+      path: "/inteligenciaNegocio",
+      icon: <BarChart4 size={20} />
+    }
+  ];
+  
+  // For demo routes - using the predefined paths for the demo
+  const demoItems = [
+    {
+      title: "Dashboard",
+      path: "/demo/dashboard",
+      icon: <LayoutDashboard size={20} />
+    },
+    {
+      title: "Agenda",
+      path: "/demo/agenda",
+      icon: <List size={20} />
+    },
+    {
+      title: "Profesionales",
+      path: "/demo/professionals",
+      icon: <Users size={20} />
+    },
+    {
+      title: "Servicios",
+      path: "/demo/services",
+      icon: <ShoppingBag size={20} />
+    },
+    {
+      title: "Configuración",
+      path: "/demo/configuracion",
+      icon: <Cog size={20} />
+    }
+  ];
+  
+  // Determine if we're in demo mode based on the path
+  const isDemoMode = location.pathname.startsWith('/demo');
+  const navItems = isDemoMode ? demoItems : [...commonItems, ...businessItems];
   
   return (
     <aside 
@@ -29,29 +132,63 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
       <div className="flex flex-col h-full">
         {/* Sidebar header with logo */}
         <div className="flex items-center p-4 border-b border-gray-100">
-          <Link to="/demo/dashboard" className="flex items-center">
+          <Link to={isDemoMode ? "/demo/dashboard" : "/dashboard"} className="flex items-center">
             <span className="text-xl font-bold text-horaLibre-500">Hora</span>
             {!isCollapsed && <span className="ml-1 text-xl font-bold">Libre</span>}
           </Link>
         </div>
         
+        {/* Business selector (only show in regular mode, not demo) */}
+        {!isDemoMode && !isCollapsed && availableBusinesses && availableBusinesses.length > 0 && (
+          <div className="p-3 border-b border-gray-100">
+            <button
+              className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => setIsBusinessListOpen(!isBusinessListOpen)}
+            >
+              <span className="text-sm font-medium truncate">
+                {currentBusiness?.name || "Seleccionar negocio"}
+              </span>
+              <ChevronDown size={16} className={`transform transition-transform ${isBusinessListOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isBusinessListOpen && (
+              <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-30">
+                {availableBusinesses.map((business) => (
+                  <button
+                    key={business.business_id}
+                    className={`w-full text-left p-2 text-sm hover:bg-gray-50 ${
+                      currentBusiness?.business_id === business.business_id ? 'bg-horaLibre-50 text-horaLibre-600' : ''
+                    }`}
+                    onClick={() => {
+                      switchBusiness(business);
+                      setIsBusinessListOpen(false);
+                    }}
+                  >
+                    {business.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* Sidebar navigation links */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto">
           <ul className="space-y-2">
-            {sidebarLinks.map((link) => (
-              <li key={link.path}>
+            {navItems.map((item) => (
+              <li key={item.path}>
                 <Link
-                  to={link.path}
+                  to={item.path}
                   className={cn(
                     "flex items-center p-2 rounded-lg transition-colors",
-                    location.pathname === link.path
+                    location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))
                       ? "bg-horaLibre-50 text-horaLibre-600"
                       : "text-gray-600 hover:bg-gray-100",
                     isCollapsed ? "justify-center" : "justify-start"
                   )}
                 >
-                  <span className="flex items-center justify-center">{link.icon}</span>
-                  {!isCollapsed && <span className="ml-3">{link.name}</span>}
+                  <span className="flex items-center justify-center">{item.icon}</span>
+                  {!isCollapsed && <span className="ml-3">{item.title}</span>}
                 </Link>
               </li>
             ))}
