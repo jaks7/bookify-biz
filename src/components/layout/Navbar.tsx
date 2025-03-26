@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Menu, X, Home, Users, PriceTag } from 'lucide-react';
+import { Menu, X, Home, Users, Tag } from 'lucide-react';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -26,7 +26,7 @@ const Navbar = () => {
   const navLinks = [
     { name: 'Inicio', path: '/', icon: <Home size={20} /> },
     { name: 'Afiliados', path: '/afiliados', icon: <Users size={20} /> },
-    { name: 'Precios', path: '/precios', icon: <PriceTag size={20} /> },
+    { name: 'Precios', path: '/precios', icon: <Tag size={20} /> },
   ];
 
   const isActive = (path: string) => location.pathname === path;
