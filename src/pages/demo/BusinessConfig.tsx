@@ -1,6 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -9,8 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Plus, Trash2, Clock, Copy } from 'lucide-react';
+import { Plus, Trash2, Clock, Copy } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Tipos para los horarios comerciales
 interface TimeRange {
@@ -45,7 +45,7 @@ const mockBusiness = {
   city: "Madrid",
   postal_code: "28036",
   cif: "B12345678",
-  type_of_business: "Clínica dental",
+  type_of_business: "clinica_dental",
   main_contact_user: "ca921839-be7b-4e09-bd36-8c4ddfafa631",
   configuration_is_completed: true
 };
@@ -101,48 +101,22 @@ const weekDays = [
   { id: "7", name: "Domingo" }
 ];
 
-// Plantillas de horarios predefinidas
-const scheduleTemplates = [
-  { 
-    name: "Comercio estándar", 
-    schedule: {
-      "1": [{ start: "09:00", end: "14:00" }, { start: "17:00", end: "20:00" }],
-      "2": [{ start: "09:00", end: "14:00" }, { start: "17:00", end: "20:00" }],
-      "3": [{ start: "09:00", end: "14:00" }, { start: "17:00", end: "20:00" }],
-      "4": [{ start: "09:00", end: "14:00" }, { start: "17:00", end: "20:00" }],
-      "5": [{ start: "09:00", end: "14:00" }, { start: "17:00", end: "20:00" }],
-      "6": [{ start: "10:00", end: "14:00" }],
-      "7": []
-    }
-  },
-  { 
-    name: "Clínica médica", 
-    schedule: {
-      "1": [{ start: "08:00", end: "15:00" }],
-      "2": [{ start: "08:00", end: "15:00" }],
-      "3": [{ start: "08:00", end: "15:00" }],
-      "4": [{ start: "08:00", end: "15:00" }],
-      "5": [{ start: "08:00", end: "15:00" }],
-      "6": [],
-      "7": []
-    }
-  },
-  { 
-    name: "Peluquería/Estética", 
-    schedule: {
-      "1": [],
-      "2": [{ start: "10:00", end: "20:00" }],
-      "3": [{ start: "10:00", end: "20:00" }],
-      "4": [{ start: "10:00", end: "20:00" }],
-      "5": [{ start: "10:00", end: "20:00" }],
-      "6": [{ start: "10:00", end: "15:00" }],
-      "7": []
-    }
-  }
+// Lista de tipos de negocio para el selector
+const businessTypes = [
+  { value: "peluqueria", label: "Peluquería" },
+  { value: "barberia", label: "Barbería" },
+  { value: "clinica_dental", label: "Clínica dental" },
+  { value: "fisioterapia", label: "Fisioterapia" },
+  { value: "estetica", label: "Centro de estética" },
+  { value: "psicologia", label: "Psicología" },
+  { value: "nutricion", label: "Nutrición" },
+  { value: "gimnasio", label: "Gimnasio" },
+  { value: "yoga", label: "Yoga" },
+  { value: "masajes", label: "Masajes" },
+  { value: "otros", label: "Otros" }
 ];
 
 const DemoBusinessConfig = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [business, setBusiness] = useState(mockBusiness);
@@ -221,25 +195,6 @@ const DemoBusinessConfig = () => {
     }
   };
 
-  // Aplicar una plantilla de horarios
-  const applyTemplate = (template: typeof scheduleTemplates[0]) => {
-    setBusinessConfig({
-      ...businessConfig,
-      business_hours: {...template.schedule}
-    });
-    
-    setSelectedDays(
-      Object.keys(template.schedule).filter(day => 
-        template.schedule[day] && template.schedule[day].length > 0
-      )
-    );
-    
-    toast({
-      title: "Plantilla aplicada",
-      description: `Se ha aplicado la plantilla "${template.name}"`
-    });
-  };
-
   // Función para copiar horarios
   const copyScheduleFrom = (sourceDayId: string, targetDayIds: string[]) => {
     const sourceSchedule = businessConfig.business_hours[sourceDayId] || [];
@@ -294,21 +249,11 @@ const DemoBusinessConfig = () => {
     <AppSidebarWrapper>
       <div className="flex-1 p-4 lg:p-8 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center mb-6">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate("/demo/businesses")} 
-              className="mr-4"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">{business.name}</h1>
-              <p className="text-muted-foreground mt-1">
-                Configuración del negocio
-              </p>
-            </div>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">{business.name}</h1>
+            <p className="text-muted-foreground mt-1">
+              Configuración del negocio
+            </p>
           </div>
           
           <Tabs defaultValue="basic" className="w-full">
@@ -340,11 +285,21 @@ const DemoBusinessConfig = () => {
                     
                     <div className="space-y-2">
                       <Label htmlFor="type">Tipo de negocio</Label>
-                      <Input 
-                        id="type" 
-                        value={business.type_of_business} 
-                        onChange={(e) => handleBusinessChange('type_of_business', e.target.value)}
-                      />
+                      <Select
+                        value={business.type_of_business}
+                        onValueChange={(value) => handleBusinessChange('type_of_business', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un tipo de negocio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {businessTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   
@@ -400,26 +355,6 @@ const DemoBusinessConfig = () => {
                 </CardHeader>
                 
                 <CardContent className="space-y-6 mt-4">
-                  {/* Plantillas de horarios */}
-                  <div className="bg-gray-50 p-4 rounded-lg border">
-                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Plantillas rápidas
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {scheduleTemplates.map((template, index) => (
-                        <Button 
-                          key={index} 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => applyTemplate(template)}
-                        >
-                          {template.name}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  
                   {/* Selector de días */}
                   <div className="space-y-2">
                     <Label>Días laborables</Label>
@@ -679,12 +614,6 @@ const DemoBusinessConfig = () => {
           </Tabs>
           
           <div className="flex justify-end mt-6 space-x-2">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/demo/businesses')}
-            >
-              Cancelar
-            </Button>
             <Button 
               onClick={handleSave}
               disabled={loading}

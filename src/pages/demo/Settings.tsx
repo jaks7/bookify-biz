@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from 'lucide-react';
 
 const DemoSettings = () => {
   const navigate = useNavigate();
@@ -14,21 +13,11 @@ const DemoSettings = () => {
     <AppSidebarWrapper>
       <div className="flex-1 p-8 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center mb-6">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate(-1)} 
-              className="mr-4"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Configuración</h1>
-              <p className="text-muted-foreground mt-1">
-                Personaliza los ajustes de tu cuenta y aplicación
-              </p>
-            </div>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">Configuración</h1>
+            <p className="text-muted-foreground mt-1">
+              Personaliza los ajustes de tu cuenta y aplicación
+            </p>
           </div>
           
           <Tabs defaultValue="general" className="w-full">
