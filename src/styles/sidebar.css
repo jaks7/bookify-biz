@@ -1,7 +1,7 @@
 
 /* Sidebar styling */
 .sidebar {
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, transform 0.3s ease;
 }
 
 .sidebar-collapsed {
@@ -20,5 +20,6 @@
   
   .sidebar-expanded {
     width: 16rem;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
   }
 }

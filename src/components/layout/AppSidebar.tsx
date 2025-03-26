@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -12,19 +12,22 @@ import {
   BarChart4, 
   Briefcase, 
   UserRound,
-  ChevronDown
+  ChevronDown,
+  Menu
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import SidebarCollapseButton from './SidebarCollapseButton';
 import { useAuth } from '@/stores/authContext';
 import { cn } from "@/lib/utils";
+import { useIsMobile } from '@/hooks/use-mobile';
 import "@/styles/sidebar.css";
 
-// Define the AppSidebar component first to avoid the initialization error
+// Define the AppSidebar component
 const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; toggleCollapse: () => void }) => {
   const { currentBusiness, availableBusinesses, switchBusiness } = useAuth();
   const location = useLocation();
   const [isBusinessListOpen, setIsBusinessListOpen] = useState(false);
+  const isMobile = useIsMobile();
   
   // Common navigation items
   const commonItems = [
@@ -122,89 +125,114 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
   const isDemoMode = location.pathname.startsWith('/demo');
   const navItems = isDemoMode ? demoItems : [...commonItems, ...businessItems];
   
-  return (
-    <aside 
-      className={cn(
-        "fixed left-0 top-0 z-20 h-screen bg-white border-r border-gray-200 transition-all duration-300",
-        isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"
-      )}
+  // Mobile sidebar toggle button
+  const MobileToggleButton = () => (
+    <button
+      className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white shadow-md"
+      onClick={toggleCollapse}
+      aria-label={isCollapsed ? "Expand menu" : "Collapse menu"}
     >
-      <div className="flex flex-col h-full">
-        {/* Sidebar header with logo */}
-        <div className="flex items-center p-4 border-b border-gray-100">
-          <Link to={isDemoMode ? "/demo/dashboard" : "/dashboard"} className="flex items-center">
-            <span className="text-xl font-bold text-horaLibre-500">Hora</span>
-            {!isCollapsed && <span className="ml-1 text-xl font-bold">Libre</span>}
-          </Link>
-        </div>
-        
-        {/* Business selector (only show in regular mode, not demo) */}
-        {!isDemoMode && !isCollapsed && availableBusinesses && availableBusinesses.length > 0 && (
-          <div className="p-3 border-b border-gray-100">
-            <button
-              className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              onClick={() => setIsBusinessListOpen(!isBusinessListOpen)}
-            >
-              <span className="text-sm font-medium truncate">
-                {currentBusiness?.name || "Seleccionar negocio"}
-              </span>
-              <ChevronDown size={16} className={`transform transition-transform ${isBusinessListOpen ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isBusinessListOpen && (
-              <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-30">
-                {availableBusinesses.map((business) => (
-                  <button
-                    key={business.business_id}
-                    className={`w-full text-left p-2 text-sm hover:bg-gray-50 ${
-                      currentBusiness?.business_id === business.business_id ? 'bg-horaLibre-50 text-horaLibre-600' : ''
-                    }`}
-                    onClick={() => {
-                      switchBusiness(business);
-                      setIsBusinessListOpen(false);
-                    }}
-                  >
-                    {business.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+      <Menu size={24} />
+    </button>
+  );
+
+  return (
+    <>
+      <MobileToggleButton />
+      <aside 
+        className={cn(
+          "fixed left-0 top-0 z-20 h-screen bg-white border-r border-gray-200 transition-all duration-300",
+          isCollapsed ? "sidebar-collapsed" : "sidebar-expanded",
+          isMobile && isCollapsed ? "translate-x-[-100%]" : "translate-x-0"
         )}
-        
-        {/* Sidebar navigation links */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto">
-          <ul className="space-y-2">
-            {navItems.map((item) => (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className={cn(
-                    "flex items-center p-2 rounded-lg transition-colors",
-                    location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))
-                      ? "bg-horaLibre-50 text-horaLibre-600"
-                      : "text-gray-600 hover:bg-gray-100",
-                    isCollapsed ? "justify-center" : "justify-start"
-                  )}
-                >
-                  <span className="flex items-center justify-center">{item.icon}</span>
-                  {!isCollapsed && <span className="ml-3">{item.title}</span>}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        
-        {/* Collapse button */}
-        <SidebarCollapseButton isCollapsed={isCollapsed} toggleCollapse={toggleCollapse} />
-      </div>
-    </aside>
+      >
+        <div className="flex flex-col h-full">
+          {/* Sidebar header with logo */}
+          <div className="flex items-center p-4 border-b border-gray-100">
+            <Link to={isDemoMode ? "/demo/dashboard" : "/dashboard"} className="flex items-center">
+              <span className="text-xl font-bold text-horaLibre-500">Hora</span>
+              {!isCollapsed && <span className="ml-1 text-xl font-bold">Libre</span>}
+            </Link>
+          </div>
+          
+          {/* Business selector (only show in regular mode, not demo) */}
+          {!isDemoMode && !isCollapsed && availableBusinesses && availableBusinesses.length > 0 && (
+            <div className="p-3 border-b border-gray-100">
+              <button
+                className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                onClick={() => setIsBusinessListOpen(!isBusinessListOpen)}
+              >
+                <span className="text-sm font-medium truncate">
+                  {currentBusiness?.name || "Seleccionar negocio"}
+                </span>
+                <ChevronDown size={16} className={`transform transition-transform ${isBusinessListOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {isBusinessListOpen && (
+                <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-30">
+                  {availableBusinesses.map((business) => (
+                    <button
+                      key={business.business_id}
+                      className={`w-full text-left p-2 text-sm hover:bg-gray-50 ${
+                        currentBusiness?.business_id === business.business_id ? 'bg-horaLibre-50 text-horaLibre-600' : ''
+                      }`}
+                      onClick={() => {
+                        switchBusiness(business);
+                        setIsBusinessListOpen(false);
+                      }}
+                    >
+                      {business.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Sidebar navigation links */}
+          <nav className="flex-1 px-3 py-4 overflow-y-auto">
+            <ul className="space-y-2">
+              {navItems.map((item) => (
+                <li key={item.path}>
+                  <Link
+                    to={item.path}
+                    className={cn(
+                      "flex items-center p-2 rounded-lg transition-colors",
+                      location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))
+                        ? "bg-horaLibre-50 text-horaLibre-600"
+                        : "text-gray-600 hover:bg-gray-100",
+                      isCollapsed ? "justify-center" : "justify-start"
+                    )}
+                  >
+                    <span className="flex items-center justify-center">{item.icon}</span>
+                    {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          
+          {/* Collapse button - only show on desktop */}
+          <div className="md:block hidden">
+            <SidebarCollapseButton isCollapsed={isCollapsed} toggleCollapse={toggleCollapse} />
+          </div>
+        </div>
+      </aside>
+    </>
   );
 };
 
 // Define the AppSidebarWrapper component
 export const AppSidebarWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Set sidebar to collapsed by default on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setIsCollapsed(true);
+    }
+  }, [isMobile]);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -213,7 +241,14 @@ export const AppSidebarWrapper: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <div className="flex min-h-screen">
       <AppSidebar isCollapsed={isCollapsed} toggleCollapse={toggleCollapse} />
-      <main className={`flex-1 ${isCollapsed ? 'ml-20' : 'ml-64'} transition-all duration-300 overflow-y-auto`}>
+      <main 
+        className={cn(
+          "flex-1 transition-all duration-300 overflow-y-auto",
+          isMobile 
+            ? "ml-0" 
+            : (isCollapsed ? 'ml-20' : 'ml-64')
+        )}
+      >
         {children}
       </main>
     </div>
