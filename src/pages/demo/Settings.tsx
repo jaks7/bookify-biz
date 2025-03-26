@@ -52,7 +52,7 @@ const DemoSettings = () => {
                   
                   <Button 
                     className="mt-4" 
-                    onClick={() => navigate('/demo/business-config')}
+                    onClick={() => navigate('/demo/configuracion')}
                   >
                     Ver configuración de negocio avanzada
                   </Button>
@@ -75,7 +75,7 @@ const DemoSettings = () => {
                   
                   <Button 
                     className="mt-4" 
-                    onClick={() => navigate('/demo/business-config')}
+                    onClick={() => navigate('/demo/configuracion')}
                   >
                     Editar configuración completa
                   </Button>

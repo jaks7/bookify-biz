@@ -165,7 +165,13 @@ const DemoBusinesses = () => {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" className="w-full">Ver Detalles</Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => window.location.href = "/demo/configuracion"}
+                  >
+                    Ver Detalles
+                  </Button>
                 </CardFooter>
               </Card>
             ))}

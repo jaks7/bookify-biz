@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./stores/authContext";
 import { ProfessionalProvider } from './stores/professionalContext';
-import { AvailabilityProvider } from './stores/availabilityStore';
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
 import Affiliates from "./pages/Affiliates";
@@ -48,56 +47,54 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <ProfessionalProvider>
-        <AvailabilityProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <Router>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/agenda" element={<Agenda />} />
-                <Route path="/calendar" element={<CalendarView />} />
-                <Route path="/reservation" element={<ClientReservation />} />
-                <Route path="/turnos" element={<Turnos />} />
-                <Route path="/inteligenciaNegocio" element={<BusinessIntelligence />} />
-                <Route path="/whatsapp" element={<WhatsApp />} />
-                <Route path="/precios" element={<Pricing />} />
-                <Route path="/afiliados" element={<Affiliates />} />
-                <Route path="/onboarding" element={<Onboarding />} />
-                <Route path="/mi_perfil" element={<Profile />} />
-                
-                {/* Management routes */}
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/businesses" element={<Businesses />} />
-                <Route path="/configuracion" element={<BusinessConfig />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/professionals" element={<Professionals />} />
-                <Route path="/services" element={<Services />} />
-                <Route path="/clients" element={<Clients />} />
-                
-                {/* Demo routes */}
-                <Route path="/demo/agenda" element={<DemoAgenda />} />
-                <Route path="/demo/calendar" element={<DemoCalendarView />} />
-                <Route path="/demo/turnos" element={<DemoTurnos />} />
-                <Route path="/demo/dashboard" element={<DemoDashboard />} />
-                <Route path="/demo/businesses" element={<DemoBusinesses />} />
-                <Route path="/demo/businesses/:businessId" element={<DemoBusinessConfig />} />
-                <Route path="/demo/settings" element={<DemoSettings />} />
-                <Route path="/demo/professionals" element={<DemoProfessionals />} />
-                <Route path="/demo/services" element={<DemoServices />} />
-                <Route path="/demo/clients" element={<DemoClients />} />
-                <Route path="/demo/mi_perfil" element={<DemoProfile />} />
-                
-                {/* Redirect outdated component routes to the new pages */}
-                <Route path="/components/Login" element={<Navigate to="/login" replace />} />
-                <Route path="/components/Register" element={<Navigate to="/register" replace />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Router>
-          </TooltipProvider>
-        </AvailabilityProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Router>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/agenda" element={<Agenda />} />
+              <Route path="/calendar" element={<CalendarView />} />
+              <Route path="/reservation" element={<ClientReservation />} />
+              <Route path="/turnos" element={<Turnos />} />
+              <Route path="/inteligenciaNegocio" element={<BusinessIntelligence />} />
+              <Route path="/whatsapp" element={<WhatsApp />} />
+              <Route path="/precios" element={<Pricing />} />
+              <Route path="/afiliados" element={<Affiliates />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/mi_perfil" element={<Profile />} />
+              
+              {/* Management routes */}
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/businesses" element={<Businesses />} />
+              <Route path="/configuracion" element={<BusinessConfig />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/professionals" element={<Professionals />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/clients" element={<Clients />} />
+              
+              {/* Demo routes */}
+              <Route path="/demo/agenda" element={<DemoAgenda />} />
+              <Route path="/demo/calendar" element={<DemoCalendarView />} />
+              <Route path="/demo/turnos" element={<DemoTurnos />} />
+              <Route path="/demo/dashboard" element={<DemoDashboard />} />
+              <Route path="/demo/businesses" element={<DemoBusinesses />} />
+              <Route path="/demo/configuracion" element={<DemoBusinessConfig />} />
+              <Route path="/demo/settings" element={<DemoSettings />} />
+              <Route path="/demo/professionals" element={<DemoProfessionals />} />
+              <Route path="/demo/services" element={<DemoServices />} />
+              <Route path="/demo/clients" element={<DemoClients />} />
+              <Route path="/demo/mi_perfil" element={<DemoProfile />} />
+              
+              {/* Redirect outdated component routes to the new pages */}
+              <Route path="/components/Login" element={<Navigate to="/login" replace />} />
+              <Route path="/components/Register" element={<Navigate to="/register" replace />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+        </TooltipProvider>
       </ProfessionalProvider>
     </AuthProvider>
   </QueryClientProvider>

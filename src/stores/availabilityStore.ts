@@ -30,8 +30,6 @@ export const useAvailabilityStore = create<AvailabilityStore>((set) => ({
         businessHours: response.data.business_hours || {},
         loading: false 
       });
-      
-      return response.data;
     } catch (error) {
       console.error('Error fetching business config:', error);
       set({ error: 'Error al cargar la configuración', loading: false });
@@ -47,7 +45,9 @@ export const useAvailabilityStore = create<AvailabilityStore>((set) => ({
         business_hours: businessHours
       };
       
-      if (set((state) => state.businessConfig !== null)) {
+      const state = useAvailabilityStore.getState();
+      
+      if (state.businessConfig !== null) {
         await axios.put(
           ENDPOINTS.BUSINESS_CONFIG_UPDATE(businessId),
           updatedConfig
@@ -59,13 +59,13 @@ export const useAvailabilityStore = create<AvailabilityStore>((set) => ({
         );
       }
       
-      set((state) => ({ 
+      set({ 
         businessConfig: state.businessConfig 
           ? { ...state.businessConfig, ...updatedConfig } as BusinessConfig 
           : updatedConfig as BusinessConfig,
         businessHours,
         loading: false
-      }));
+      });
       
       return true;
     } catch (error) {

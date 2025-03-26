@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/stores/authContext';
+import { ArrowLeft } from 'lucide-react';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -15,7 +16,22 @@ const Settings = () => {
     <AppSidebarWrapper>
       <div className="flex-1 p-8 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Configuración</h1>
+          <div className="flex items-center mb-6">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate(-1)} 
+              className="mr-4"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Configuración</h1>
+              <p className="text-muted-foreground mt-1">
+                Personaliza los ajustes de tu cuenta y aplicación
+              </p>
+            </div>
+          </div>
           
           <Tabs defaultValue="general" className="w-full">
             <TabsList className="grid w-full md:w-[400px] grid-cols-2">
@@ -35,6 +51,15 @@ const Settings = () => {
                   <p className="text-muted-foreground">
                     Esta sección te permite personalizar la aplicación según tus necesidades.
                   </p>
+                  
+                  {currentBusiness && (
+                    <Button 
+                      className="mt-4" 
+                      onClick={() => navigate(`/configuracion`)}
+                    >
+                      Ver configuración de negocio avanzada
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -55,9 +80,9 @@ const Settings = () => {
                   {currentBusiness && (
                     <Button 
                       className="mt-4" 
-                      onClick={() => navigate(`/business-config/${currentBusiness.business_id}`)}
+                      onClick={() => navigate(`/configuracion`)}
                     >
-                      Editar configuración de negocio
+                      Editar configuración completa
                     </Button>
                   )}
                 </CardContent>
