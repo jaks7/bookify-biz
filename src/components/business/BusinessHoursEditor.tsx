@@ -1,10 +1,8 @@
 
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { BusinessHours, TimeRange } from '@/types/availability';
 
@@ -178,3 +176,5 @@ export function BusinessHoursEditor({ businessHours, onChange }: BusinessHoursEd
     </Card>
   );
 }
+
+export default BusinessHoursEditor;

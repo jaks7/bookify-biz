@@ -1,11 +1,11 @@
 
-import React, { createContext, useContext, useState } from 'react';
+import { create } from 'zustand';
 import axios from 'axios';
 import { ENDPOINTS } from '@/config/api';
 import { BusinessHours } from '@/types/availability';
 import { BusinessConfig } from '@/types/business';
 
-interface AvailabilityContextType {
+interface AvailabilityStore {
   businessConfig: BusinessConfig | null;
   businessHours: BusinessHours;
   loading: boolean;
@@ -14,43 +14,40 @@ interface AvailabilityContextType {
   updateBusinessConfig: (businessId: string, config: Partial<BusinessConfig>, businessHours: BusinessHours) => Promise<boolean>;
 }
 
-const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
-
-export const AvailabilityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [businessConfig, setBusinessConfig] = useState<BusinessConfig | null>(null);
-  const [businessHours, setBusinessHours] = useState<BusinessHours>({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchBusinessConfig = async (businessId: string) => {
+export const useAvailabilityStore = create<AvailabilityStore>((set) => ({
+  businessConfig: null,
+  businessHours: {},
+  loading: false,
+  error: null,
+  
+  fetchBusinessConfig: async (businessId: string) => {
     try {
-      setLoading(true);
-      setError(null);
+      set({ loading: true, error: null });
       const response = await axios.get<BusinessConfig>(ENDPOINTS.BUSINESS_CONFIG_DETAIL(businessId));
       
-      setBusinessConfig(response.data);
-      setBusinessHours(response.data.business_hours || {});
-      setLoading(false);
+      set({ 
+        businessConfig: response.data, 
+        businessHours: response.data.business_hours || {},
+        loading: false 
+      });
       
       return response.data;
     } catch (error) {
       console.error('Error fetching business config:', error);
-      setError('Error al cargar la configuración');
-      setLoading(false);
+      set({ error: 'Error al cargar la configuración', loading: false });
     }
-  };
+  },
   
-  const updateBusinessConfig = async (businessId: string, config: Partial<BusinessConfig>, businessHours: BusinessHours) => {
+  updateBusinessConfig: async (businessId: string, config: Partial<BusinessConfig>, businessHours: BusinessHours) => {
     try {
-      setLoading(true);
-      setError(null);
+      set({ loading: true, error: null });
       
       const updatedConfig = {
         ...config,
         business_hours: businessHours
       };
       
-      if (businessConfig) {
+      if (set((state) => state.businessConfig !== null)) {
         await axios.put(
           ENDPOINTS.BUSINESS_CONFIG_UPDATE(businessId),
           updatedConfig
@@ -62,39 +59,19 @@ export const AvailabilityProvider: React.FC<{ children: React.ReactNode }> = ({ 
         );
       }
       
-      setBusinessConfig({ ...businessConfig, ...updatedConfig } as BusinessConfig);
-      setBusinessHours(businessHours);
-      setLoading(false);
+      set((state) => ({ 
+        businessConfig: state.businessConfig 
+          ? { ...state.businessConfig, ...updatedConfig } as BusinessConfig 
+          : updatedConfig as BusinessConfig,
+        businessHours,
+        loading: false
+      }));
       
       return true;
     } catch (error) {
       console.error('Error updating business config:', error);
-      setError('Error al actualizar la configuración');
-      setLoading(false);
+      set({ error: 'Error al actualizar la configuración', loading: false });
       return false;
     }
-  };
-
-  return (
-    <AvailabilityContext.Provider 
-      value={{ 
-        businessConfig, 
-        businessHours, 
-        loading, 
-        error, 
-        fetchBusinessConfig, 
-        updateBusinessConfig 
-      }}
-    >
-      {children}
-    </AvailabilityContext.Provider>
-  );
-};
-
-export const useAvailability = () => {
-  const context = useContext(AvailabilityContext);
-  if (context === undefined) {
-    throw new Error('useAvailability must be used within an AvailabilityProvider');
   }
-  return context;
-};
+}));
