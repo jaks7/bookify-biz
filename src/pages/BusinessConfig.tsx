@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/stores/authContext';
 import { useAvailabilityStore } from '@/stores/availabilityStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BusinessHours } from '@/types/availability';
 
 // Días de la semana para el selector de horarios
 const weekDays = [
@@ -53,7 +54,7 @@ const BusinessConfig = () => {
   } = useAvailabilityStore();
   
   const [business, setBusiness] = useState({
-    business_id: currentBusiness?.id || "",
+    business_id: currentBusiness?.uid || "",
     name: currentBusiness?.name || "",
     address: currentBusiness?.address || "",
     city: currentBusiness?.city || "",
@@ -73,14 +74,14 @@ const BusinessConfig = () => {
     professional_schedule_enabled: businessConfig?.professional_schedule_enabled || false,
   });
   
-  const [localBusinessHours, setLocalBusinessHours] = useState(businessHours);
+  const [localBusinessHours, setLocalBusinessHours] = useState<BusinessHours>(businessHours);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // Cargar la configuración del negocio cuando cambie el negocio seleccionado
   useEffect(() => {
-    if (currentBusiness?.id) {
-      fetchBusinessConfig(currentBusiness.id);
+    if (currentBusiness?.uid) {
+      fetchBusinessConfig(currentBusiness.uid);
     }
   }, [currentBusiness, fetchBusinessConfig]);
 
@@ -195,7 +196,7 @@ const BusinessConfig = () => {
 
   // Función para guardar la configuración
   const handleSave = async () => {
-    if (!currentBusiness?.id) {
+    if (!currentBusiness?.uid) {
       toast({
         title: "Error",
         description: "No hay un negocio seleccionado",
@@ -209,7 +210,7 @@ const BusinessConfig = () => {
     try {
       // Actualizar la configuración del negocio
       const success = await updateBusinessConfig(
-        currentBusiness.id,
+        currentBusiness.uid,
         configData,
         localBusinessHours
       );
@@ -270,8 +271,9 @@ const BusinessConfig = () => {
           </div>
           
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full md:w-[400px] grid-cols-2">
+            <TabsList className="grid w-full md:w-[600px] grid-cols-3">
               <TabsTrigger value="basic">Información Básica</TabsTrigger>
+              <TabsTrigger value="schedule">Horarios Comerciales</TabsTrigger>
               <TabsTrigger value="advanced">Configuración Avanzada</TabsTrigger>
             </TabsList>
             
@@ -357,10 +359,13 @@ const BusinessConfig = () => {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
 
+            {/* Pestaña de Horarios Comerciales */}
+            <TabsContent value="schedule" className="space-y-6 mt-6">
               {/* Horarios comerciales */}
               <Card className="overflow-hidden">
-                <CardHeader className="pb-0">
+                <CardHeader>
                   <CardTitle>Horarios comerciales</CardTitle>
                   <CardDescription>
                     Define los días y horas en los que tu negocio está abierto

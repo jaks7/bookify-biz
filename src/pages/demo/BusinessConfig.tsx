@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Clock, Copy } from 'lucide-react';
+import { Plus, Trash2, Copy } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -257,8 +257,9 @@ const DemoBusinessConfig = () => {
           </div>
           
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full md:w-[400px] grid-cols-2">
+            <TabsList className="grid w-full md:w-[600px] grid-cols-3">
               <TabsTrigger value="basic">Información Básica</TabsTrigger>
+              <TabsTrigger value="schedule">Horarios Comerciales</TabsTrigger>
               <TabsTrigger value="advanced">Configuración Avanzada</TabsTrigger>
             </TabsList>
             
@@ -344,10 +345,13 @@ const DemoBusinessConfig = () => {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
 
+            {/* Pestaña de Horarios Comerciales */}
+            <TabsContent value="schedule" className="space-y-6 mt-6">
               {/* Horarios comerciales */}
               <Card className="overflow-hidden">
-                <CardHeader className="pb-0">
+                <CardHeader>
                   <CardTitle>Horarios comerciales</CardTitle>
                   <CardDescription>
                     Define los días y horas en los que tu negocio está abierto
