@@ -28,7 +28,7 @@ export default {
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
-				bookify: {
+				horaLibre: {
 					50: '#f0f9ff',
 					100: '#e0f2fe',
 					200: '#bae6fd',

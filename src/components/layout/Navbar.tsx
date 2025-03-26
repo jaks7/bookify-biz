@@ -49,8 +49,8 @@ const Navbar = () => {
             <Link
               key={link.path}
               to={link.path}
-              className={`font-medium transition-colors hover:text-bookify-500 ${
-                isActive(link.path) ? 'text-bookify-600' : 'text-gray-600'
+              className={`font-medium transition-colors hover:text-horaLibre-500 ${
+                isActive(link.path) ? 'text-horaLibre-600' : 'text-gray-600'
               }`}
             >
               {link.name}
@@ -66,7 +66,7 @@ const Navbar = () => {
             </Button>
           </Link>
           <Link to="/register">
-            <Button className="bg-bookify-500 hover:bg-bookify-600 text-white font-medium">
+            <Button className="bg-horaLibre-500 hover:bg-horaLibre-600 text-white font-medium">
               Registrarse
             </Button>
           </Link>
@@ -89,8 +89,8 @@ const Navbar = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`font-medium py-2 transition-colors hover:text-bookify-500 ${
-                  isActive(link.path) ? 'text-bookify-600' : 'text-gray-600'
+                className={`font-medium py-2 transition-colors hover:text-horaLibre-500 ${
+                  isActive(link.path) ? 'text-horaLibre-600' : 'text-gray-600'
                 }`}
               >
                 {link.name}
@@ -103,7 +103,7 @@ const Navbar = () => {
                 </Button>
               </Link>
               <Link to="/register">
-                <Button className="w-full justify-center bg-bookify-500 hover:bg-bookify-600 text-white">
+                <Button className="w-full justify-center bg-horaLibre-500 hover:bg-horaLibre-600 text-white">
                   Registrarse
                 </Button>
               </Link>
