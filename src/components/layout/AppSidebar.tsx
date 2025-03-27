@@ -86,7 +86,7 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
       icon: <Cog size={20} />
     },
     {
-      title: "Inteligencia de negocio",
+      title: "Estadísticas",
       path: "/inteligenciaNegocio",
       icon: <BarChart4 size={20} />
     }

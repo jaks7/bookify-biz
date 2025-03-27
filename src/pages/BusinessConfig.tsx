@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +13,7 @@ import { useAuth } from '@/stores/authContext';
 import { useAvailabilityStore } from '@/stores/availabilityStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BusinessHours } from '@/types/availability';
+import { useBusinessStore } from '@/stores/businessStore';
 
 // Días de la semana para el selector de horarios
 const weekDays = [
@@ -52,15 +52,26 @@ const BusinessConfig = () => {
     fetchBusinessConfig, 
     updateBusinessConfig 
   } = useAvailabilityStore();
+  const { 
+    business: businessData,
+    loading: businessLoading,
+    fetchBusiness,
+    updateBusiness 
+  } = useBusinessStore();
   
+  // Debugging
+  useEffect(() => {
+    console.log("Current Business:", currentBusiness);
+  }, [currentBusiness]);
+
   const [business, setBusiness] = useState({
-    business_id: currentBusiness?.uid || "",
-    name: currentBusiness?.name || "",
-    address: currentBusiness?.address || "",
-    city: currentBusiness?.city || "",
-    postal_code: currentBusiness?.postal_code || "",
-    cif: currentBusiness?.cif || "",
-    type_of_business: currentBusiness?.type_of_business || "otros",
+    business_id: "",  // Inicializamos vacío
+    name: "",
+    address: "",
+    city: "",
+    postal_code: "",
+    cif: "",
+    type_of_business: "otros",
   });
   
   const [configData, setConfigData] = useState({
@@ -78,10 +89,29 @@ const BusinessConfig = () => {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Cargar la configuración del negocio cuando cambie el negocio seleccionado
+  // Actualizar el estado local cuando cambie currentBusiness
   useEffect(() => {
-    if (currentBusiness?.uid) {
-      fetchBusinessConfig(currentBusiness.uid);
+    if (currentBusiness?.business_id) {
+      setBusiness(prev => ({
+        ...prev,
+        business_id: currentBusiness.business_id,
+        name: currentBusiness.name || "",
+        address: currentBusiness.address || "",
+        city: currentBusiness.city || "",
+        postal_code: currentBusiness.postal_code || "",
+        cif: currentBusiness.cif || "",
+        type_of_business: currentBusiness.type_of_business || "otros",
+      }));
+      
+      // Cargar datos completos del negocio
+      fetchBusiness(currentBusiness.business_id);
+    }
+  }, [currentBusiness]);
+
+  // Actualizar la configuración del negocio cuando cambie el negocio seleccionado
+  useEffect(() => {
+    if (currentBusiness?.business_id) {
+      fetchBusinessConfig(currentBusiness.business_id);
     }
   }, [currentBusiness, fetchBusinessConfig]);
 
@@ -196,43 +226,49 @@ const BusinessConfig = () => {
 
   // Función para guardar la configuración
   const handleSave = async () => {
-    if (!currentBusiness?.uid) {
+    // Debugging
+    console.log("Saving business:", business);
+    console.log("Current Business ID:", currentBusiness?.business_id);
+
+    if (!currentBusiness?.business_id) {
+      console.error("No business ID found");
       toast({
         title: "Error",
         description: "No hay un negocio seleccionado",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     setIsSaving(true);
-    
     try {
-      // Actualizar la configuración del negocio
-      const success = await updateBusinessConfig(
-        currentBusiness.uid,
+      // Asegurarnos de usar el business_id correcto
+      const businessSuccess = await updateBusiness(
+        currentBusiness.business_id,
+        {
+          ...business,
+          business_id: currentBusiness.business_id  // Asegurarnos de que se incluye
+        }
+      );
+      
+      const configSuccess = await updateBusinessConfig(
+        currentBusiness.business_id,
         configData,
         localBusinessHours
       );
-      
-      if (success) {
+
+      if (businessSuccess && configSuccess) {
         toast({
-          title: "Configuración guardada",
-          description: "Los cambios se han guardado correctamente"
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "No se pudieron guardar los cambios",
-          variant: "destructive"
+          title: "Éxito",
+          description: "Los cambios se han guardado correctamente",
         });
       }
     } catch (error) {
-      console.error("Error al guardar la configuración:", error);
+      console.error("Error saving:", error);
       toast({
         title: "Error",
-        description: "Ocurrió un error al guardar la configuración",
-        variant: "destructive"
+        description: "No se pudieron guardar los cambios",
+        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
