@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -81,8 +82,8 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
 
   const handleSave = () => {
     // Format datetime strings for API
-    const startDateTime = `${date}T${startTime}:00`;
-    const endDateTime = `${date}T${endTime}:00`;
+    const startDateTime = `${date}T${startTime}:00Z`;
+    const endDateTime = `${date}T${endTime}:00Z`;
 
     const formData: BookingFormData = {
       booking_type: bookingType,
@@ -101,6 +102,25 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
 
     onSave(formData);
   };
+
+  // When serviceId changes, automatically set the end time based on service duration
+  useEffect(() => {
+    if (serviceId && bookingType === 'reservation') {
+      const service = services.find(s => s.id === serviceId);
+      if (service && startTime) {
+        // Parse start time
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const startDate = new Date();
+        startDate.setHours(hours, minutes, 0, 0);
+        
+        // Add service duration
+        const endDate = add(startDate, { minutes: service.duration });
+        
+        // Format end time
+        setEndTime(format(endDate, 'HH:mm'));
+      }
+    }
+  }, [serviceId, startTime, services, bookingType]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -147,7 +167,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                 <SelectContent>
                   {services.map((service) => (
                     <SelectItem key={service.id} value={service.id.toString()}>
-                      {service.name}
+                      {service.name} ({service.duration} min)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -210,12 +230,12 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Hora inicio</Label>
-            <TimePicker value={startTime} onChange={setStartTime} />
+            <TimePicker value={startTime} onChange={setStartTime} step={15} />
           </div>
           
           <div className="space-y-2">
             <Label>Hora fin</Label>
-            <TimePicker value={endTime} onChange={setEndTime} />
+            <TimePicker value={endTime} onChange={setEndTime} step={15} />
           </div>
         </div>
         

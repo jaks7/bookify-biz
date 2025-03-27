@@ -143,6 +143,32 @@ const generateMockBookings = (date: Date): Booking[] => {
       cancelled: false,
       duration: 60,
       title: "Descanso"
+    },
+    // Small 15-min client reservation to test visibility
+    {
+      booking_id: "f4ei4065-4gh8-8i1j-2994-hfg994385i8e",
+      business: "business1",
+      start_datetime: `${dateStr}T11:15:00Z`,
+      end_datetime: `${dateStr}T11:30:00Z`,
+      client: {
+        client_id: 1003,
+        name: "Isabel",
+        surnames: "Gómez",
+        fullname: "Isabel Gómez",
+        phone: "600345678"
+      },
+      professional: {
+        professional_id: 1,
+        name: "María",
+        surnames: "García",
+        fullname: "María García"
+      },
+      service: {
+        service_id: 3,
+        name: "Revisión"
+      },
+      cancelled: false,
+      duration: 15
     }
   ];
 };
@@ -159,11 +185,14 @@ interface DayCalendarProps {
   selectedDate: Date;
 }
 
-// Time slots configuration
+// Time slots configuration - adding 15 minute increments
 const TIME_SLOTS = [
-  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
-  "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", 
-  "17:00", "17:30", "18:00", "18:30", "19:00"
+  "09:00", "09:15", "09:30", "09:45", "10:00", "10:15", "10:30", "10:45",
+  "11:00", "11:15", "11:30", "11:45", "12:00", "12:15", "12:30", "12:45", 
+  "13:00", "13:15", "13:30", "13:45", "14:00", "14:15", "14:30", "14:45", 
+  "15:00", "15:15", "15:30", "15:45", "16:00", "16:15", "16:30", "16:45", 
+  "17:00", "17:15", "17:30", "17:45", "18:00", "18:15", "18:30", "18:45", 
+  "19:00", "19:15", "19:30", "19:45", "20:00"
 ];
 
 export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
@@ -378,6 +407,29 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
     return Math.max(1, endIndex - startIndex);
   };
 
+  // Helper function to get color for different types of bookings
+  const getBookingColor = (booking: Booking): { bg: string, border: string, text: string, hover: string } => {
+    // Check if it's a block or a reservation
+    const isBlock = !!booking.title;
+    
+    if (isBlock) {
+      return {
+        bg: "bg-blue-50",
+        border: "border-blue-200",
+        text: "text-blue-800",
+        hover: "hover:bg-blue-100"
+      };
+    } else {
+      // Client reservation
+      return {
+        bg: "bg-violet-50",
+        border: "border-violet-200",
+        text: "text-violet-800",
+        hover: "hover:bg-violet-100"
+      };
+    }
+  };
+
   // Helper function to convert a booking to a spanning cell
   const convertBookingToSpanningCell = (booking: Booking, professional: Professional): React.ReactNode => {
     const startTime = formatTime(booking.start_datetime);
@@ -390,41 +442,58 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
     const rowSpan = calculateBookingRowSpan(booking);
     if (rowSpan <= 0) return null; // Skip invalid bookings
     
+    // Calculate height and determine if it's a small booking (15-30 min)
+    const isSmallBooking = rowSpan <= 2; // 15-30 min bookings
+    const colors = getBookingColor(booking);
+    
+    // Time slot height (updated to account for 15 min increments)
+    const slotHeight = 36; // px
+    
     return (
       <div 
         key={`booking-${booking.booking_id}`}
         className={cn(
-          "absolute inset-x-0 rounded-md mx-1.5 p-2 cursor-pointer overflow-hidden border",
-          isBlock 
-            ? "bg-amber-50 hover:bg-amber-100 border-amber-200" 
-            : "bg-rose-50 hover:bg-rose-100 border-rose-200"
+          "absolute inset-x-0 rounded-md mx-1 p-2 cursor-pointer overflow-hidden border shadow-sm transition-all",
+          colors.bg, 
+          colors.border,
+          colors.hover
         )}
         style={{
-          top: `${startIndex * 41}px`, // 41px is the height of each time slot
-          height: `${rowSpan * 41 - 2}px`, // -2px for the border
+          top: `${startIndex * slotHeight}px`,
+          height: `${rowSpan * slotHeight - 2}px`, // -2px for the border
           zIndex: 10
         }}
         onClick={() => handleBookingClick(booking)}
       >
-        <div className="flex flex-col h-full">
-          <div className="text-sm font-medium">{`${startTime} - ${endTime}`}</div>
-          {isBlock ? (
-            <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
-              <FileText className="h-3 w-3" />
-              {booking.title}
-            </div>
-          ) : (
-            <div className="space-y-1 mt-1">
-              {booking.client && (
-                <div className="flex items-center gap-1 text-xs text-gray-600">
-                  <User className="h-3 w-3" />
-                  {booking.client.fullname}
+        <div className={cn("flex flex-col h-full", colors.text)}>
+          {/* Header - always visible */}
+          <div className="text-sm font-medium">
+            {startTime} - {endTime}
+            {isSmallBooking && (isBlock ? `: ${booking.title}` : booking.client && `: ${booking.client.fullname.split(' ')[0]}`)}
+          </div>
+          
+          {/* Details - only for bookings with enough height */}
+          {!isSmallBooking && (
+            <div className="mt-1">
+              {isBlock ? (
+                <div className="flex items-center gap-1 text-xs">
+                  <FileText className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{booking.title}</span>
                 </div>
-              )}
-              {booking.service && (
-                <div className="flex items-center gap-1 text-xs text-gray-600">
-                  <Bookmark className="h-3 w-3" />
-                  {booking.service.name}
+              ) : (
+                <div className="space-y-1">
+                  {booking.client && (
+                    <div className="flex items-center gap-1 text-xs">
+                      <User className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{booking.client.fullname}</span>
+                    </div>
+                  )}
+                  {booking.service && (
+                    <div className="flex items-center gap-1 text-xs">
+                      <Bookmark className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{booking.service.name}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -532,7 +601,9 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                 <div className="overflow-auto">
                   {/* Fixed header with professional names */}
                   <div className="flex border-b sticky top-0 bg-white z-20">
-                    <div className="w-16"></div> {/* Empty space for time column */}
+                    <div className="w-16 text-center py-3 text-xs font-semibold text-gray-500 border-r">
+                      Hora
+                    </div>
                     <div className="flex-1 grid" style={{ 
                       gridTemplateColumns: `repeat(${filteredProfessionals.length}, minmax(200px, 1fr))` 
                     }}>
@@ -552,8 +623,16 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                   {/* Calendar grid */}
                   <div className="relative">
                     {TIME_SLOTS.map((time, timeIndex) => (
-                      <div key={time} className="flex gap-0 border-b h-[41px]">
-                        <div className="w-16 text-sm text-gray-500 p-3 border-r sticky left-0 bg-white z-10">
+                      <div key={time} className={cn(
+                        "flex gap-0 border-b h-9",
+                        // Add darker background for full hours
+                        time.endsWith("00") ? "bg-gray-50" : ""
+                      )}>
+                        <div className={cn(
+                          "w-16 text-xs text-gray-500 py-2 px-1 border-r sticky left-0 bg-white z-10 text-right",
+                          // Only show time label for 15, 30, 45, and 00
+                          !time.endsWith("00") && !time.endsWith("15") && !time.endsWith("30") && !time.endsWith("45") && "opacity-0"
+                        )}>
                           {time}
                         </div>
                         <div className="flex-1 grid" style={{ 
@@ -566,7 +645,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                                 key={`${professional.id}-${time}`}
                                 className={cn(
                                   "border-r relative",
-                                  isAvailable ? "bg-white hover:bg-emerald-50/50 cursor-pointer" : "bg-gray-100"
+                                  isAvailable ? "bg-white hover:bg-gray-50 cursor-pointer" : "bg-gray-100"
                                 )}
                                 onClick={() => isAvailable && handleTimeSlotClick(time, professional.id)}
                               >
@@ -590,6 +669,22 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
               )}
             </CardContent>
           </Card>
+          
+          {/* Color legend for bookings */}
+          <div className="flex flex-wrap gap-3 justify-center">
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded bg-violet-50 border border-violet-200"></div>
+              <span className="text-xs text-gray-600">Reserva de cliente</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded bg-blue-50 border border-blue-200"></div>
+              <span className="text-xs text-gray-600">Bloqueo de calendario</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded bg-gray-100"></div>
+              <span className="text-xs text-gray-600">Fuera de horario laboral</span>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
       
