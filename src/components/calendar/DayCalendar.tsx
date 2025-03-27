@@ -14,36 +14,81 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { BookingDialog } from "@/components/calendar/BookingDialog";
 import { Booking, BookingFormData } from "@/types/booking";
-import { Professional } from "@/types/professional";
+import { Professional, DailyScheduleData, ProfessionalAvailability } from "@/types/professional";
 import { Service } from "@/types/service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 // Mock data for demonstrations
-const generateMockProfessionals = (): Professional[] => {
-  return [
-    {
-      id: 1,
-      name: "María García",
-      isWorking: true,
-      workingHours: [{ start: "09:00", end: "14:00" }]
-    },
-    {
-      id: 2,
-      name: "Juan Pérez",
-      isWorking: true,
-      workingHours: [
-        { start: "09:00", end: "14:00" },
-        { start: "16:00", end: "20:00" }
-      ]
-    },
-    {
-      id: 3,
-      name: "Sofía Rodríguez",
-      isWorking: false,
-      workingHours: [{ start: "16:00", end: "20:00" }]
-    }
-  ];
+const generateMockDailySchedule = (date: Date): DailyScheduleData => {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  
+  return {
+    date: dateStr,
+    business_hours: [
+      {
+        datetime_start: `${dateStr}T09:00`,
+        datetime_end: `${dateStr}T14:00`
+      },
+      {
+        datetime_start: `${dateStr}T16:00`,
+        datetime_end: `${dateStr}T20:00`
+      }
+    ],
+    professionals: [
+      {
+        professional_id: 1,
+        id: 1,
+        name: "María García",
+        surnames: "García",
+        fullname: "María García",
+        isWorking: true,
+        availabilities: [
+          {
+            datetime_start: `${dateStr}T09:00:00Z`,
+            datetime_end: `${dateStr}T14:00:00Z`
+          },
+          {
+            datetime_start: `${dateStr}T16:00:00Z`,
+            datetime_end: `${dateStr}T20:00:00Z`
+          }
+        ]
+      },
+      {
+        professional_id: 2,
+        id: 2,
+        name: "Juan Pérez",
+        surnames: "Pérez",
+        fullname: "Juan Pérez",
+        isWorking: true,
+        availabilities: [
+          {
+            datetime_start: `${dateStr}T09:00:00Z`,
+            datetime_end: `${dateStr}T14:00:00Z`
+          },
+          {
+            datetime_start: `${dateStr}T16:00:00Z`,
+            datetime_end: `${dateStr}T20:00:00Z`
+          }
+        ]
+      },
+      {
+        professional_id: 3,
+        id: 3,
+        name: "Sofía Rodríguez",
+        surnames: "Rodríguez",
+        fullname: "Sofía Rodríguez",
+        isWorking: false,
+        availabilities: [
+          {
+            datetime_start: `${dateStr}T16:00:00Z`,
+            datetime_end: `${dateStr}T20:00:00Z`
+          }
+        ]
+      }
+    ],
+    bookings: []
+  };
 };
 
 // Mock services data
@@ -173,14 +218,6 @@ const generateMockBookings = (date: Date): Booking[] => {
   ];
 };
 
-// Mock business hours
-const generateMockBusinessHours = () => {
-  return [
-    { start: "09:00", end: "14:00" },
-    { start: "16:00", end: "20:00" }
-  ];
-};
-
 interface DayCalendarProps {
   selectedDate: Date;
 }
@@ -196,15 +233,14 @@ const TIME_SLOTS = [
 ];
 
 export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
-  const [businessHours, setBusinessHours] = useState(generateMockBusinessHours());
-  const [professionals, setProfessionals] = useState<Professional[]>(generateMockProfessionals());
+  const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(null);
+  const [businessHours, setBusinessHours] = useState<{ start: string; end: string }[]>([]);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [services, setServices] = useState<Service[]>(generateMockServices());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [activeTab, setActiveTab] = useState("agenda");
   const [showAllProfessionals, setShowAllProfessionals] = useState(true);
-  const [selectedProfessionals, setSelectedProfessionals] = useState<number[]>(
-    professionals.filter(p => p.isWorking).map(p => p.id)
-  );
+  const [selectedProfessionals, setSelectedProfessionals] = useState<number[]>([]);
   
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -213,8 +249,33 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ time: string, professionalId: number } | null>(null);
 
   useEffect(() => {
-    // Fetch mock bookings when date changes
+    // Fetch mock data when date changes
+    const mockDailySchedule = generateMockDailySchedule(selectedDate);
     const mockedBookings = generateMockBookings(selectedDate);
+    
+    setDailySchedule(mockDailySchedule);
+    
+    // Convert business hours to format used by UI
+    const formattedBusinessHours = mockDailySchedule.business_hours.map(hours => ({
+      start: hours.datetime_start.split('T')[1],
+      end: hours.datetime_end.split('T')[1]
+    }));
+    setBusinessHours(formattedBusinessHours);
+    
+    // Set professionals and mark who is working
+    const profsWithWorkingStatus = mockDailySchedule.professionals.map(prof => ({
+      ...prof,
+      isWorking: prof.availabilities && prof.availabilities.length > 0
+    }));
+    setProfessionals(profsWithWorkingStatus);
+    
+    // Update selected professionals
+    setSelectedProfessionals(
+      profsWithWorkingStatus
+        .filter(p => p.isWorking)
+        .map(p => p.professional_id)
+    );
+    
     setBookings(mockedBookings);
   }, [selectedDate]);
 
@@ -224,7 +285,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
 
   const handleProfessionalStatusChange = (id: number, isWorking: boolean) => {
     setProfessionals(professionals.map(prof => 
-      prof.id === id ? { ...prof, isWorking } : prof
+      prof.professional_id === id ? { ...prof, isWorking } : prof
     ));
 
     // Update selected professionals
@@ -236,8 +297,15 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   };
 
   const handleProfessionalHoursChange = (id: number, hours: { start: string; end: string }[]) => {
+    // Since the API format doesn't directly use workingHours, we'll convert to availabilities format
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const availabilities = hours.map(hour => ({
+      datetime_start: `${dateStr}T${hour.start}:00Z`,
+      datetime_end: `${dateStr}T${hour.end}:00Z`
+    }));
+    
     setProfessionals(professionals.map(prof => 
-      prof.id === id ? { ...prof, workingHours: hours } : prof
+      prof.professional_id === id ? { ...prof, availabilities } : prof
     ));
   };
 
@@ -252,14 +320,14 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   const handleSelectAllProfessionals = (selected: boolean) => {
     setShowAllProfessionals(selected);
     if (selected) {
-      setSelectedProfessionals(professionals.filter(p => p.isWorking).map(p => p.id));
+      setSelectedProfessionals(professionals.filter(p => p.isWorking).map(p => p.professional_id));
     } else {
       setSelectedProfessionals([]);
     }
   };
 
   const workingProfessionals = professionals.filter(p => p.isWorking);
-  const filteredProfessionals = workingProfessionals.filter(p => selectedProfessionals.includes(p.id));
+  const filteredProfessionals = workingProfessionals.filter(p => selectedProfessionals.includes(p.professional_id));
   
   // Handle click on empty time slot
   const handleTimeSlotClick = (time: string, professionalId: number) => {
@@ -314,13 +382,13 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
       
       // Add professional
       if (data.professional_id) {
-        const professional = professionals.find(p => p.id === data.professional_id);
+        const professional = professionals.find(p => p.professional_id === data.professional_id);
         if (professional) {
           newBooking.professional = {
-            professional_id: professional.id,
+            professional_id: professional.professional_id,
             name: professional.name.split(' ')[0],
-            surnames: professional.name.split(' ').slice(1).join(' '),
-            fullname: professional.name
+            surnames: professional.surnames || '',
+            fullname: professional.fullname
           };
         }
       }
@@ -352,11 +420,18 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
       .toUpperCase();
   };
   
-  // Helper function to check if time is within working hours
-  const isWithinWorkingHours = (professional: Professional, time: string) => {
-    return professional.workingHours?.some(
-      ({ start, end }) => time >= start && time < end
-    ) || false;
+  // Helper function to check if time is within available hours for a professional
+  const isWithinAvailableHours = (professional: Professional, time: string): boolean => {
+    if (!professional.availabilities) return false;
+    
+    const timeWithoutSeconds = time;
+    
+    return professional.availabilities.some(availability => {
+      const startTime = availability.datetime_start.split('T')[1].substring(0, 5); // Format to HH:MM
+      const endTime = availability.datetime_end.split('T')[1].substring(0, 5); // Format to HH:MM
+      
+      return timeWithoutSeconds >= startTime && timeWithoutSeconds < endTime;
+    });
   };
   
   // Helper function to format the time string
@@ -372,21 +447,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   // Helper function to get formatted date for the API
   const getFormattedDate = () => {
     return format(selectedDate, 'yyyy-MM-dd');
-  };
-
-  // Helper function to find the booking that starts at a specific time for a professional
-  const getBookingAtTime = (time: string, professionalId: number): Booking | undefined => {
-    const formattedTime = `${time}:00Z`; // Add seconds and Z for matching
-    
-    return bookings.find(booking => {
-      const startTime = booking.start_datetime.includes('T') 
-        ? booking.start_datetime.split('T')[1] 
-        : booking.start_datetime;
-        
-      const bookingProfessionalId = booking.professional?.professional_id;
-      
-      return startTime === formattedTime && bookingProfessionalId === professionalId;
-    });
   };
 
   // Helper function to calculate the height of a booking in rows (for spanning multiple time slots)
@@ -407,27 +467,35 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
     return Math.max(1, endIndex - startIndex);
   };
 
-  // Helper function to get color for different types of bookings
+  // Helper function to get color for different types of bookings - using more aesthetic, opaque blues
   const getBookingColor = (booking: Booking): { bg: string, border: string, text: string, hover: string } => {
     // Check if it's a block or a reservation
     const isBlock = !!booking.title;
     
     if (isBlock) {
+      // Calendar block - using a rich blue color
       return {
-        bg: "bg-blue-50",
-        border: "border-blue-200",
-        text: "text-blue-800",
-        hover: "hover:bg-blue-100"
+        bg: "bg-blue-100",
+        border: "border-blue-300",
+        text: "text-blue-900",
+        hover: "hover:bg-blue-200"
       };
     } else {
-      // Client reservation
+      // Client reservation - using a nice violet/purple
       return {
-        bg: "bg-violet-50",
-        border: "border-violet-200",
-        text: "text-violet-800",
-        hover: "hover:bg-violet-100"
+        bg: "bg-indigo-100",
+        border: "border-indigo-300",
+        text: "text-indigo-900",
+        hover: "hover:bg-indigo-200"
       };
     }
+  };
+
+  // Get all bookings for a professional
+  const getBookingsForProfessional = (professionalId: number): Booking[] => {
+    return bookings.filter(
+      booking => booking.professional?.professional_id === professionalId
+    );
   };
 
   // Helper function to convert a booking to a spanning cell
@@ -453,7 +521,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
       <div 
         key={`booking-${booking.booking_id}`}
         className={cn(
-          "absolute inset-x-0 rounded-md mx-1 p-2 cursor-pointer overflow-hidden border shadow-sm transition-all",
+          "absolute inset-x-0 rounded-md mx-1 p-2 cursor-pointer overflow-hidden border-2 shadow-sm transition-all",
           colors.bg, 
           colors.border,
           colors.hover
@@ -503,13 +571,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
     );
   };
 
-  // Get all bookings for a professional
-  const getBookingsForProfessional = (professionalId: number): Booking[] => {
-    return bookings.filter(
-      booking => booking.professional?.professional_id === professionalId
-    );
-  };
-
   return (
     <div>
       <Tabs 
@@ -540,10 +601,18 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
               <div className="space-y-2">
                 {professionals.map(professional => (
                   <ProfessionalSchedule
-                    key={professional.id}
-                    professional={professional}
-                    onStatusChange={handleProfessionalStatusChange}
-                    onHoursChange={handleProfessionalHoursChange}
+                    key={professional.professional_id}
+                    professional={{
+                      id: professional.professional_id.toString(),
+                      name: professional.fullname,
+                      isWorking: professional.isWorking || false,
+                      workingHours: professional.availabilities?.map(avail => ({
+                        start: avail.datetime_start.split('T')[1].substring(0, 5),
+                        end: avail.datetime_end.split('T')[1].substring(0, 5)
+                      })) || []
+                    }}
+                    onStatusChange={(id, isWorking) => handleProfessionalStatusChange(parseInt(id), isWorking)}
+                    onHoursChange={(id, hours) => handleProfessionalHoursChange(parseInt(id), hours)}
                   />
                 ))}
               </div>
@@ -580,18 +649,18 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                 <div className="mb-4 flex flex-wrap gap-2">
                   {workingProfessionals.map(professional => (
                     <label
-                      key={professional.id}
+                      key={professional.professional_id}
                       className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full cursor-pointer hover:bg-gray-200 transition-colors"
                     >
                       <Checkbox
-                        id={`prof-${professional.id}`}
-                        checked={selectedProfessionals.includes(professional.id)}
+                        id={`prof-${professional.professional_id}`}
+                        checked={selectedProfessionals.includes(professional.professional_id)}
                         onCheckedChange={(checked) => 
-                          handleProfessionalSelection(professional.id, checked === true)
+                          handleProfessionalSelection(professional.professional_id, checked === true)
                         }
                         className="h-4 w-4"
                       />
-                      <span className="text-sm">{professional.name}</span>
+                      <span className="text-sm">{professional.fullname}</span>
                     </label>
                   ))}
                 </div>
@@ -608,13 +677,13 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                       gridTemplateColumns: `repeat(${filteredProfessionals.length}, minmax(200px, 1fr))` 
                     }}>
                       {filteredProfessionals.map(professional => (
-                        <div key={professional.id} className="p-3 text-center font-medium flex items-center justify-center gap-2 bg-gray-50 border-r">
+                        <div key={professional.professional_id} className="p-3 text-center font-medium flex items-center justify-center gap-2 bg-gray-50 border-r">
                           <Avatar className="h-7 w-7">
-                            <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
-                              {getInitials(professional.name)}
+                            <AvatarFallback className="text-xs bg-indigo-100 text-indigo-600">
+                              {getInitials(professional.fullname)}
                             </AvatarFallback>
                           </Avatar>
-                          <span>{professional.name}</span>
+                          <span>{professional.fullname}</span>
                         </div>
                       ))}
                     </div>
@@ -639,17 +708,17 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                           gridTemplateColumns: `repeat(${filteredProfessionals.length}, minmax(200px, 1fr))` 
                         }}>
                           {filteredProfessionals.map(professional => {
-                            const isAvailable = isWithinWorkingHours(professional, time);
+                            const isAvailable = isWithinAvailableHours(professional, time);
                             return (
                               <div 
-                                key={`${professional.id}-${time}`}
+                                key={`${professional.professional_id}-${time}`}
                                 className={cn(
                                   "border-r relative",
                                   isAvailable ? "bg-white hover:bg-gray-50 cursor-pointer" : "bg-gray-100"
                                 )}
-                                onClick={() => isAvailable && handleTimeSlotClick(time, professional.id)}
+                                onClick={() => isAvailable && handleTimeSlotClick(time, professional.professional_id)}
                               >
-                                {timeIndex === 0 && getBookingsForProfessional(professional.id).map(booking => 
+                                {timeIndex === 0 && getBookingsForProfessional(professional.professional_id).map(booking => 
                                   convertBookingToSpanningCell(booking, professional)
                                 )}
                               </div>
@@ -670,14 +739,14 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
             </CardContent>
           </Card>
           
-          {/* Color legend for bookings */}
+          {/* Color legend for bookings - updated with new colors */}
           <div className="flex flex-wrap gap-3 justify-center">
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-violet-50 border border-violet-200"></div>
+              <div className="w-4 h-4 rounded bg-indigo-100 border-2 border-indigo-300"></div>
               <span className="text-xs text-gray-600">Reserva de cliente</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-blue-50 border border-blue-200"></div>
+              <div className="w-4 h-4 rounded bg-blue-100 border-2 border-blue-300"></div>
               <span className="text-xs text-gray-600">Bloqueo de calendario</span>
             </div>
             <div className="flex items-center gap-1.5">

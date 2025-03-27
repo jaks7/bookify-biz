@@ -2,14 +2,26 @@
 import React from 'react';
 import { format, parse } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 interface TimePickerProps {
   value: string;
   onChange: (time: string) => void;
   step?: number; // Minutes between options (default: 30)
+  label?: string;
+  id?: string;
+  className?: string;
 }
 
-export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, step = 30 }) => {
+export const TimePicker: React.FC<TimePickerProps> = ({ 
+  value, 
+  onChange, 
+  step = 30, 
+  label, 
+  id,
+  className 
+}) => {
   // Generate time options from 00:00 to 23:59 with specified step
   const generateTimeOptions = () => {
     const options: string[] = [];
@@ -29,17 +41,20 @@ export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, step = 
   const timeOptions = generateTimeOptions();
 
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger>
-        <SelectValue placeholder="Seleccionar hora" />
-      </SelectTrigger>
-      <SelectContent className="max-h-[300px]">
-        {timeOptions.map((time) => (
-          <SelectItem key={time} value={time}>
-            {time}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className={className}>
+      {label && <Label htmlFor={id}>{label}</Label>}
+      <Select value={value} onValueChange={onChange} id={id}>
+        <SelectTrigger className={cn("w-full", className)}>
+          <SelectValue placeholder="Seleccionar hora" />
+        </SelectTrigger>
+        <SelectContent className="max-h-[300px]">
+          {timeOptions.map((time) => (
+            <SelectItem key={time} value={time}>
+              {time}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 };
