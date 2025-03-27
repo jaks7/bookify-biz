@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addMinutes } from "date-fns";
 import { es } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarDays, Users, Clock, User, Bookmark, Calendar, FileText } from "lucide-react";
@@ -158,6 +158,13 @@ const generateMockBusinessHours = () => {
 interface DayCalendarProps {
   selectedDate: Date;
 }
+
+// Time slots configuration
+const TIME_SLOTS = [
+  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
+  "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", 
+  "17:00", "17:30", "18:00", "18:30", "19:00"
+];
 
 export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   const [businessHours, setBusinessHours] = useState(generateMockBusinessHours());
@@ -337,8 +344,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   const getFormattedDate = () => {
     return format(selectedDate, 'yyyy-MM-dd');
   };
-  
-  // Helper function to check if a booking exists at a specific time and professional
+
+  // Helper function to find the booking that starts at a specific time for a professional
   const getBookingAtTime = (time: string, professionalId: number): Booking | undefined => {
     const formattedTime = `${time}:00Z`; // Add seconds and Z for matching
     
@@ -352,35 +359,88 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
       return startTime === formattedTime && bookingProfessionalId === professionalId;
     });
   };
-  
-  // Helper function to check if time slot is during a booking
-  const isTimeDuringBooking = (time: string, professionalId: number): Booking | undefined => {
-    // Convert time to minutes for easier comparison
-    const timeToMinutes = (t: string) => {
-      const [hours, minutes] = t.split(':').map(Number);
-      return hours * 60 + minutes;
-    };
+
+  // Helper function to calculate the height of a booking in rows (for spanning multiple time slots)
+  const calculateBookingRowSpan = (booking: Booking): number => {
+    const startTime = booking.start_datetime.includes('T') 
+      ? booking.start_datetime.split('T')[1].substring(0, 5) 
+      : booking.start_datetime.substring(0, 5);
     
-    const timeMinutes = timeToMinutes(time);
+    const endTime = booking.end_datetime.includes('T') 
+      ? booking.end_datetime.split('T')[1].substring(0, 5) 
+      : booking.end_datetime.substring(0, 5);
     
-    return bookings.find(booking => {
-      if (booking.professional?.professional_id !== professionalId) return false;
-      
-      const startTime = booking.start_datetime.includes('T') 
-        ? booking.start_datetime.split('T')[1].substring(0, 5) 
-        : booking.start_datetime.substring(0, 5);
-        
-      const endTime = booking.end_datetime.includes('T') 
-        ? booking.end_datetime.split('T')[1].substring(0, 5) 
-        : booking.end_datetime.substring(0, 5);
-      
-      const startMinutes = timeToMinutes(startTime);
-      const endMinutes = timeToMinutes(endTime);
-      
-      return timeMinutes >= startMinutes && timeMinutes < endMinutes;
-    });
+    // Find indices in TIME_SLOTS array
+    const startIndex = TIME_SLOTS.indexOf(startTime);
+    const endIndex = TIME_SLOTS.indexOf(endTime);
+    
+    // Calculate row span (at least 1)
+    return Math.max(1, endIndex - startIndex);
   };
-  
+
+  // Helper function to convert a booking to a spanning cell
+  const convertBookingToSpanningCell = (booking: Booking, professional: Professional): React.ReactNode => {
+    const startTime = formatTime(booking.start_datetime);
+    const endTime = formatTime(booking.end_datetime);
+    const isBlock = !!booking.title;
+    
+    const startIndex = TIME_SLOTS.indexOf(startTime);
+    if (startIndex === -1) return null; // Skip if not found in our time slots
+    
+    const rowSpan = calculateBookingRowSpan(booking);
+    if (rowSpan <= 0) return null; // Skip invalid bookings
+    
+    return (
+      <div 
+        key={`booking-${booking.booking_id}`}
+        className={cn(
+          "absolute inset-x-0 rounded-md mx-1.5 p-2 cursor-pointer overflow-hidden border",
+          isBlock 
+            ? "bg-amber-50 hover:bg-amber-100 border-amber-200" 
+            : "bg-rose-50 hover:bg-rose-100 border-rose-200"
+        )}
+        style={{
+          top: `${startIndex * 41}px`, // 41px is the height of each time slot
+          height: `${rowSpan * 41 - 2}px`, // -2px for the border
+          zIndex: 10
+        }}
+        onClick={() => handleBookingClick(booking)}
+      >
+        <div className="flex flex-col h-full">
+          <div className="text-sm font-medium">{`${startTime} - ${endTime}`}</div>
+          {isBlock ? (
+            <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
+              <FileText className="h-3 w-3" />
+              {booking.title}
+            </div>
+          ) : (
+            <div className="space-y-1 mt-1">
+              {booking.client && (
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <User className="h-3 w-3" />
+                  {booking.client.fullname}
+                </div>
+              )}
+              {booking.service && (
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <Bookmark className="h-3 w-3" />
+                  {booking.service.name}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Get all bookings for a professional
+  const getBookingsForProfessional = (professionalId: number): Booking[] => {
+    return bookings.filter(
+      booking => booking.professional?.professional_id === professionalId
+    );
+  };
+
   return (
     <div>
       <Tabs 
@@ -471,7 +531,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
               {workingProfessionals.length > 0 && selectedProfessionals.length > 0 ? (
                 <div className="overflow-auto">
                   {/* Fixed header with professional names */}
-                  <div className="flex border-b sticky top-0 bg-white z-10">
+                  <div className="flex border-b sticky top-0 bg-white z-20">
                     <div className="w-16"></div> {/* Empty space for time column */}
                     <div className="flex-1 grid" style={{ 
                       gridTemplateColumns: `repeat(${filteredProfessionals.length}, minmax(200px, 1fr))` 
@@ -489,105 +549,32 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
                     </div>
                   </div>
                   
-                  {/* Generate time slots from 9:00 to 19:00 with 30 minute intervals */}
-                  <div className="grid gap-0">
-                    {["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
-                      "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", 
-                      "17:00", "17:30", "18:00", "18:30", "19:00"].map((time) => (
-                      <div key={time} className="flex gap-0 border-b">
-                        <div className="w-16 text-sm text-gray-500 p-3 border-r sticky left-0 bg-white">{time}</div>
+                  {/* Calendar grid */}
+                  <div className="relative">
+                    {TIME_SLOTS.map((time, timeIndex) => (
+                      <div key={time} className="flex gap-0 border-b h-[41px]">
+                        <div className="w-16 text-sm text-gray-500 p-3 border-r sticky left-0 bg-white z-10">
+                          {time}
+                        </div>
                         <div className="flex-1 grid" style={{ 
                           gridTemplateColumns: `repeat(${filteredProfessionals.length}, minmax(200px, 1fr))` 
                         }}>
                           {filteredProfessionals.map(professional => {
                             const isAvailable = isWithinWorkingHours(professional, time);
-                            const booking = isTimeDuringBooking(time, professional.id);
-                            const isBookingStart = getBookingAtTime(time, professional.id);
-                            
-                            if (isBookingStart) {
-                              // This is the start of a booking
-                              const startTime = formatTime(isBookingStart.start_datetime);
-                              const endTime = formatTime(isBookingStart.end_datetime);
-                              const isBlock = !!isBookingStart.title;
-                              
-                              return (
-                                <div 
-                                  key={`${professional.id}-${time}`}
-                                  className={cn(
-                                    "p-3 border-r cursor-pointer transition-colors",
-                                    isBlock 
-                                      ? "bg-amber-50 hover:bg-amber-100" 
-                                      : "bg-rose-50 hover:bg-rose-100"
-                                  )}
-                                  onClick={() => handleBookingClick(isBookingStart)}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    {isBlock ? (
-                                      <Calendar className="h-4 w-4 text-amber-500" />
-                                    ) : (
-                                      <Clock className="h-4 w-4 text-rose-500" />
-                                    )}
-                                    <div>
-                                      <div className="text-sm font-medium">{`${startTime} - ${endTime}`}</div>
-                                      <div className="flex flex-col text-xs text-gray-600 mt-1">
-                                        {isBlock ? (
-                                          <span className="flex items-center gap-1">
-                                            <FileText className="h-3 w-3" />
-                                            {isBookingStart.title}
-                                          </span>
-                                        ) : (
-                                          <>
-                                            {isBookingStart.client && (
-                                              <span className="flex items-center gap-1">
-                                                <User className="h-3 w-3" />
-                                                {isBookingStart.client.fullname}
-                                              </span>
-                                            )}
-                                            {isBookingStart.service && (
-                                              <span className="flex items-center gap-1">
-                                                <Bookmark className="h-3 w-3" />
-                                                {isBookingStart.service.name}
-                                              </span>
-                                            )}
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            } else if (booking) {
-                              // This time is within a booking (but not the start)
-                              return (
-                                <div 
-                                  key={`${professional.id}-${time}`}
-                                  className={cn(
-                                    "border-r cursor-pointer p-3",
-                                    booking.title 
-                                      ? "bg-amber-50/50" 
-                                      : "bg-rose-50/50"
-                                  )}
-                                  onClick={() => handleBookingClick(booking)}
-                                ></div>
-                              );
-                            } else if (isAvailable) {
-                              // Available time slot
-                              return (
-                                <div 
-                                  key={`${professional.id}-${time}`}
-                                  className="border-r bg-white hover:bg-emerald-50 transition-colors cursor-pointer p-3"
-                                  onClick={() => handleTimeSlotClick(time, professional.id)}
-                                ></div>
-                              );
-                            } else {
-                              // Unavailable time slot
-                              return (
-                                <div 
-                                  key={`${professional.id}-${time}`}
-                                  className="border-r bg-gray-100 p-3"
-                                ></div>
-                              );
-                            }
+                            return (
+                              <div 
+                                key={`${professional.id}-${time}`}
+                                className={cn(
+                                  "border-r relative",
+                                  isAvailable ? "bg-white hover:bg-emerald-50/50 cursor-pointer" : "bg-gray-100"
+                                )}
+                                onClick={() => isAvailable && handleTimeSlotClick(time, professional.id)}
+                              >
+                                {timeIndex === 0 && getBookingsForProfessional(professional.id).map(booking => 
+                                  convertBookingToSpanningCell(booking, professional)
+                                )}
+                              </div>
+                            );
                           })}
                         </div>
                       </div>
