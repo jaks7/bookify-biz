@@ -1,12 +1,10 @@
+
 export interface Service {
-  service_id: string;
+  id: number;
   name: string;
+  description?: string;
   duration: number;
-  price: string;
-  professionals: {
-    professional_id: string;
-    name: string;
-    surnames: string;
-    fullname: string;
-  }[];
-} 
+  price: number;
+  business_id?: string;
+  is_active?: boolean;
+}

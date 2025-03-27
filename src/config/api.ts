@@ -17,7 +17,6 @@ export const ENDPOINTS = {
   PROFESSIONAL_UPDATE: (businessId: string, professionalId: string) => 
     `${API_BASE_URL}/business/${businessId}/professionals/${professionalId}/update/`,
 
-
   SERVICES: (businessId: string) => `${API_BASE_URL}/business/${businessId}/services/`,
   SERVICES_CREATE: (businessId: string) => `${API_BASE_URL}/business/${businessId}/services/create/`,
   SERVICE_DELETE: (businessId: string, serviceId: string) => 
@@ -25,7 +24,6 @@ export const ENDPOINTS = {
   SERVICE_UPDATE: (businessId: string, serviceId: string) => 
     `${API_BASE_URL}/business/${businessId}/services/${serviceId}/update/`,
 
-  
   BUSINESS_CONFIG_CREATE: (businessId: string) => 
     `${API_BASE_URL}/business/${businessId}/configuration/create/`,
   BUSINESS_CONFIG_DETAIL: (businessId: string) => 
@@ -35,10 +33,13 @@ export const ENDPOINTS = {
   PROFESSIONAL_AVAILABILITY: (businessId: string) => 
     `${API_BASE_URL}/business/${businessId}/availability/`,
 
-
   AVAILABILITY_PATTERNS: (businessId: string) => `${API_BASE_URL}/calendars/${businessId}/patterns/`,
 
-
+  // Bookings endpoints
+  BOOKINGS: (businessId: string) => `${API_BASE_URL}/calendars/${businessId}/bookings/`,
+  BOOKING_DETAIL: (businessId: string, bookingId: string) => 
+    `${API_BASE_URL}/calendars/${businessId}/bookings/${bookingId}/`,
+  
   SHIFTS: (businessId: string) => `${API_BASE_URL}/calendars/${businessId}/shifts/`,
   SHIFTS_CREATE: (businessId: string) => `${API_BASE_URL}/calendars/${businessId}/shifts/create/`,
   SHIFT_DETAIL: (businessId: string, shiftId: string) => `${API_BASE_URL}/calendars/${businessId}/shifts/${shiftId}/`,
