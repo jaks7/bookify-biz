@@ -14,6 +14,7 @@ import { useCalendarStore } from "@/stores/calendarStore";
 
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTime, setSelectedTime] = useState<string | undefined>();
   const { currentBusiness } = useAuth();
   const { fetchDailySchedule, schedule, loading } = useCalendarStore();
   const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
@@ -27,6 +28,10 @@ const Agenda = () => {
 
   const handleScheduleUpdate = () => {
     setLastUpdate(Date.now());
+  };
+
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time);
   };
 
   return (
@@ -85,6 +90,8 @@ const Agenda = () => {
               schedule={schedule}
               loading={loading}
               onScheduleUpdate={handleScheduleUpdate}
+              onTimeSelect={handleTimeSelect}
+              selectedTime={selectedTime}
             />
           </div>
         </div>

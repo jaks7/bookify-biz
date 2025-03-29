@@ -28,6 +28,8 @@ interface DayCalendarProps {
   schedule: DailyScheduleData | null;
   loading: boolean;
   onScheduleUpdate: () => void;
+  onTimeSelect: (time: string) => void;
+  selectedTime?: string;
 }
 
 // Time slots configuration
@@ -44,7 +46,9 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   selectedDate,
   schedule,
   loading,
-  onScheduleUpdate
+  onScheduleUpdate,
+  onTimeSelect,
+  selectedTime
 }) => {
   const { currentBusiness } = useAuth();
   const { services, fetchServices } = useServiceStore();
@@ -53,7 +57,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   const [selectedProfessionals, setSelectedProfessionals] = useState<number[]>([]);
   
   // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [currentBooking, setCurrentBooking] = useState<Booking | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ time: string, professionalId: number } | null>(null);
@@ -124,10 +128,11 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   
   // Handle click on empty time slot
   const handleTimeSlotClick = (time: string, professionalId: number) => {
-    setSelectedTimeSlot({ time, professionalId });
+    onTimeSelect(time);
+    setIsBookingDialogOpen(true);
     setCurrentBooking(undefined);
     setIsEditing(false);
-    setDialogOpen(true);
+    setSelectedTimeSlot({ time, professionalId });
   };
   
   // Handle click on existing booking
@@ -146,7 +151,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       setCurrentBooking(response.data);
       setSelectedTimeSlot(null);
       setIsEditing(true);
-      setDialogOpen(true);
+      setIsBookingDialogOpen(true);
     } catch (error) {
       console.error('Error al obtener detalles de la reserva:', error);
       toast.error('Error al cargar los detalles de la reserva');
@@ -174,7 +179,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         toast.success("La reserva se ha creado correctamente");
       }
       
-      setDialogOpen(false);
+      setIsBookingDialogOpen(false);
       setCurrentBooking(null);
       onScheduleUpdate(); // Notificar que hubo un cambio
     } catch (error: any) {
@@ -533,15 +538,20 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       
       {/* Dialog for creating/editing bookings */}
       <BookingDialog
-        isOpen={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        isOpen={isBookingDialogOpen}
+        onClose={() => {
+          setIsBookingDialogOpen(false);
+          onTimeSelect("");
+          setSelectedTimeSlot(null);
+        }}
         onSave={handleSaveBooking}
         booking={currentBooking}
         date={format(selectedDate, 'yyyy-MM-dd')}
         professionals={workingProfessionals}
         services={services}
-        defaultProfessionalId={selectedTimeSlot?.professionalId}
         isEditing={isEditing}
+        selectedTime={selectedTime}
+        defaultProfessionalId={selectedTimeSlot?.professionalId}
       />
     </div>
   );
