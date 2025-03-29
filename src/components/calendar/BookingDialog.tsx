@@ -45,6 +45,7 @@ interface BookingDialogProps {
   services: Service[];
   defaultProfessionalId?: number;
   isEditing: boolean;
+  selectedTime?: string; // Add this new prop to receive the selected time
 }
 
 export const BookingDialog: React.FC<BookingDialogProps> = ({
@@ -57,6 +58,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   services,
   defaultProfessionalId,
   isEditing,
+  selectedTime, // Use this new prop
 }) => {
   const [bookingType, setBookingType] = useState<BookingType>("reservation");
   const [professionalId, setProfessionalId] = useState<string | undefined>(undefined);
@@ -104,16 +106,23 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
         setClientName("");
         setTitle("");
         
-        // Default to selected time slot or 9:00
-        setStartTime("09:00");
-        
-        // Default end time is start time + 30 minutes
-        const startDate = new Date(`${date}T${startTime}`);
-        const endDate = addMinutes(startDate, 30);
-        setEndTime(format(endDate, "HH:mm"));
+        // Use the selected time from the time slot if provided, otherwise default to 9:00
+        if (selectedTime) {
+          setStartTime(selectedTime);
+          
+          // Calculate end time (start time + 30 minutes)
+          const [hours, minutes] = selectedTime.split(':').map(Number);
+          const startDate = new Date();
+          startDate.setHours(hours, minutes, 0);
+          const endDate = addMinutes(startDate, 30);
+          setEndTime(format(endDate, "HH:mm"));
+        } else {
+          setStartTime("09:00");
+          setEndTime("09:30");
+        }
       }
     }
-  }, [isOpen, booking, defaultProfessionalId, date]);
+  }, [isOpen, booking, defaultProfessionalId, date, selectedTime]);
 
   // Filter clients as user types
   const handleClientSearch = (value: string) => {
