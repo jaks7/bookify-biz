@@ -10,9 +10,147 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
+import { DailyScheduleData } from "@/types/professional";
+
+// Mock data in the format expected by the DayCalendar component
+const mockScheduleData: DailyScheduleData = {
+  date: "2025-03-27",
+  business_hours: [
+    {
+      datetime_start: "2025-03-27T09:00",
+      datetime_end: "2025-03-27T17:00"
+    }
+  ],
+  professionals: [
+    {
+      professional_id: 1,
+      name: "Gema",
+      surnames: null,
+      fullname: "Gema None",
+      availabilities: [
+        {
+          datetime_start: "2025-03-27T09:00:00Z",
+          datetime_end: "2025-03-27T18:00:00Z"
+        }
+      ]
+    },
+    {
+      professional_id: 2,
+      name: "Ana",
+      surnames: null,
+      fullname: "Ana None",
+      availabilities: []
+    }
+  ],
+  bookings: [
+    {
+      booking_id: "123",
+      client_name: "Carlos Rodríguez",
+      service_name: "Consulta General",
+      datetime_start: "2025-03-27T10:00:00Z",
+      datetime_end: "2025-03-27T11:00:00Z",
+      professional_id: 1,
+      professional_name: "Gema None"
+    },
+    {
+      booking_id: "124",
+      client_name: "María López",
+      service_name: "Revisión",
+      datetime_start: "2025-03-27T14:00:00Z",
+      datetime_end: "2025-03-27T15:00:00Z",
+      professional_id: 1,
+      professional_name: "Gema None"
+    }
+  ]
+};
+
+// Function to generate mock data for a specific date
+const generateMockDataForDate = (date: Date): DailyScheduleData => {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  
+  return {
+    date: dateStr,
+    business_hours: [
+      {
+        datetime_start: `${dateStr}T09:00`,
+        datetime_end: `${dateStr}T17:00`
+      }
+    ],
+    professionals: [
+      {
+        professional_id: 1,
+        name: "Gema",
+        surnames: null,
+        fullname: "Gema None",
+        availabilities: [
+          {
+            datetime_start: `${dateStr}T09:00:00Z`,
+            datetime_end: `${dateStr}T18:00:00Z`
+          }
+        ]
+      },
+      {
+        professional_id: 2,
+        name: "Ana",
+        surnames: null,
+        fullname: "Ana None",
+        availabilities: [
+          {
+            datetime_start: `${dateStr}T09:00:00Z`,
+            datetime_end: `${dateStr}T14:00:00Z`
+          }
+        ]
+      }
+    ],
+    bookings: [
+      {
+        booking_id: "123",
+        client_name: "Carlos Rodríguez",
+        service_name: "Consulta General",
+        datetime_start: `${dateStr}T10:00:00Z`,
+        datetime_end: `${dateStr}T11:00:00Z`,
+        professional_id: 1,
+        professional_name: "Gema None"
+      },
+      {
+        booking_id: "124",
+        client_name: "María López",
+        service_name: "Revisión",
+        datetime_start: `${dateStr}T14:00:00Z`,
+        datetime_end: `${dateStr}T15:00:00Z`,
+        professional_id: 1,
+        professional_name: "Gema None"
+      },
+      {
+        booking_id: "125",
+        client_name: "Juan Pérez",
+        service_name: "Consulta Especialista",
+        datetime_start: `${dateStr}T11:30:00Z`,
+        datetime_end: `${dateStr}T12:30:00Z`,
+        professional_id: 2,
+        professional_name: "Ana None"
+      }
+    ]
+  };
+};
 
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [schedule, setSchedule] = useState<DailyScheduleData>(mockScheduleData);
+  const [loading, setLoading] = useState(false);
+
+  // Update mock data when selected date changes
+  const handleDateChange = (date: Date | undefined) => {
+    if (date) {
+      setLoading(true);
+      // Simulate API call delay
+      setTimeout(() => {
+        setSchedule(generateMockDataForDate(date));
+        setSelectedDate(date);
+        setLoading(false);
+      }, 300);
+    }
+  };
 
   return (
     <AppSidebarWrapper>
@@ -50,7 +188,7 @@ const Agenda = () => {
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
+                    onSelect={handleDateChange}
                     initialFocus
                     locale={es}
                     className="pointer-events-auto"
@@ -58,14 +196,18 @@ const Agenda = () => {
                 </PopoverContent>
               </Popover>
               
-              <Button variant="outline" onClick={() => setSelectedDate(new Date())}>
+              <Button variant="outline" onClick={() => handleDateChange(new Date())}>
                 Hoy
               </Button>
             </div>
           </div>
 
           <div className="mt-8">
-            <DayCalendar selectedDate={selectedDate} />
+            <DayCalendar 
+              selectedDate={selectedDate} 
+              schedule={schedule}
+              loading={loading}
+            />
           </div>
         </div>
       </div>
