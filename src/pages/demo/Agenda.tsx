@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { DailyScheduleData } from "@/types/professional";
+import { BookingDialog } from "@/components/calendar/BookingDialog";
+import { BookingFormData } from "@/types/booking";
+import { toast } from "sonner";
 
 // Mock data in the format expected by the DayCalendar component
 const mockScheduleData: DailyScheduleData = {
@@ -63,6 +66,14 @@ const mockScheduleData: DailyScheduleData = {
     }
   ]
 };
+
+// Mock services data
+const mockServices = [
+  { id: 1, name: "Consulta General", duration: 60, price: 50 },
+  { id: 2, name: "Revisión", duration: 30, price: 30 },
+  { id: 3, name: "Consulta Especialista", duration: 45, price: 75 },
+  { id: 4, name: "Tratamiento Completo", duration: 90, price: 120 }
+];
 
 // Function to generate mock data for a specific date
 const generateMockDataForDate = (date: Date): DailyScheduleData => {
@@ -138,6 +149,10 @@ const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [schedule, setSchedule] = useState<DailyScheduleData>(mockScheduleData);
   const [loading, setLoading] = useState(false);
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<any>(null);
+  const [selectedProfessionalId, setSelectedProfessionalId] = useState<number | undefined>(undefined);
+  const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
 
   // Update mock data when selected date changes
   const handleDateChange = (date: Date | undefined) => {
@@ -150,6 +165,31 @@ const Agenda = () => {
         setLoading(false);
       }, 300);
     }
+  };
+
+  // Handle slot click to open booking dialog
+  const handleSlotClick = (professionalId: number, time: string) => {
+    setSelectedProfessionalId(professionalId);
+    setSelectedTime(time);
+    setEditingBooking(null);
+    setBookingDialogOpen(true);
+  };
+
+  // Handle booking click to edit
+  const handleBookingClick = (booking: any) => {
+    setEditingBooking(booking);
+    setSelectedProfessionalId(booking.professional_id);
+    setBookingDialogOpen(true);
+  };
+
+  // Handle saving booking
+  const handleSaveBooking = (data: BookingFormData) => {
+    console.log("Booking data:", data);
+    // Here you would normally send to API
+    toast.success(editingBooking ? "Reserva actualizada" : "Reserva creada");
+    setBookingDialogOpen(false);
+    // Refresh calendar data
+    handleDateChange(selectedDate);
   };
 
   return (
@@ -207,10 +247,26 @@ const Agenda = () => {
               selectedDate={selectedDate} 
               schedule={schedule}
               loading={loading}
+              onSlotClick={handleSlotClick}
+              onBookingClick={handleBookingClick}
             />
           </div>
         </div>
       </div>
+
+      {/* Booking Dialog */}
+      <BookingDialog
+        isOpen={bookingDialogOpen}
+        onClose={() => setBookingDialogOpen(false)}
+        onSave={handleSaveBooking}
+        booking={editingBooking}
+        date={format(selectedDate, 'yyyy-MM-dd')}
+        professionals={schedule?.professionals || []}
+        services={mockServices}
+        defaultProfessionalId={selectedProfessionalId}
+        isEditing={!!editingBooking}
+        selectedTime={selectedTime}
+      />
     </AppSidebarWrapper>
   );
 };

@@ -45,6 +45,7 @@ interface BookingDialogProps {
   services: Service[];
   defaultProfessionalId?: number;
   isEditing: boolean;
+  selectedTime?: string;
 }
 
 export const BookingDialog: React.FC<BookingDialogProps> = ({
@@ -57,6 +58,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   services,
   defaultProfessionalId,
   isEditing,
+  selectedTime,
 }) => {
   const [bookingType, setBookingType] = useState<BookingType>("reservation");
   const [professionalId, setProfessionalId] = useState<string | undefined>(undefined);
@@ -105,15 +107,28 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
         setTitle("");
         
         // Default to selected time slot or 9:00
-        setStartTime("09:00");
+        const initialTime = selectedTime || "09:00";
+        setStartTime(initialTime);
         
-        // Default end time is start time + 30 minutes
-        const startDate = new Date(`${date}T${startTime}`);
-        const endDate = addMinutes(startDate, 30);
+        // Default end time is start time + 15 minutes
+        const startDate = new Date(`${date}T${initialTime}`);
+        const endDate = addMinutes(startDate, 15);
         setEndTime(format(endDate, "HH:mm"));
       }
     }
-  }, [isOpen, booking, defaultProfessionalId, date]);
+  }, [isOpen, booking, defaultProfessionalId, date, selectedTime]);
+
+  // Update end time when service is selected
+  useEffect(() => {
+    if (serviceId) {
+      const selectedService = services.find(service => service.id?.toString() === serviceId);
+      if (selectedService && selectedService.duration) {
+        const startDate = new Date(`${date}T${startTime}`);
+        const endDate = addMinutes(startDate, selectedService.duration);
+        setEndTime(format(endDate, "HH:mm"));
+      }
+    }
+  }, [serviceId, services, startTime, date]);
 
   // Filter clients as user types
   const handleClientSearch = (value: string) => {
@@ -238,7 +253,24 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                     <Label>Hora inicio</Label>
                     <TimePicker 
                       value={startTime} 
-                      onChange={setStartTime} 
+                      onChange={(newTime) => {
+                        setStartTime(newTime);
+                        
+                        // If no service selected, update end time to start + 15 minutes
+                        if (!serviceId) {
+                          const startDate = new Date(`${date}T${newTime}`);
+                          const endDate = addMinutes(startDate, 15);
+                          setEndTime(format(endDate, "HH:mm"));
+                        } else {
+                          // If service selected, update end time based on service duration
+                          const selectedService = services.find(service => service.id?.toString() === serviceId);
+                          if (selectedService && selectedService.duration) {
+                            const startDate = new Date(`${date}T${newTime}`);
+                            const endDate = addMinutes(startDate, selectedService.duration);
+                            setEndTime(format(endDate, "HH:mm"));
+                          }
+                        }
+                      }}
                       step={15}
                     />
                   </div>
