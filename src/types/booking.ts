@@ -1,4 +1,3 @@
-
 export type BookingStatus = "confirmed" | "cancelled" | "pending";
 export type BookingType = "reservation" | "block";
 
@@ -36,15 +35,12 @@ export interface Booking {
 }
 
 export interface BookingFormData {
-  booking_id?: string;
   booking_type: BookingType;
-  client_id?: number;
-  client_name?: string;
-  service_id?: number;
   professional_id?: number;
+  service_id?: number;
+  client_id?: number;
+  new_client?: string;
+  title?: string;
   start_datetime: string;
   end_datetime: string;
-  title?: string;
-  notes?: string;
-  status?: BookingStatus;
 }

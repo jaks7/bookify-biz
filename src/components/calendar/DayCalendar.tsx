@@ -27,6 +27,7 @@ interface DayCalendarProps {
   selectedDate: Date;
   schedule: DailyScheduleData | null;
   loading: boolean;
+  onScheduleUpdate: () => void;
 }
 
 // Time slots configuration
@@ -42,7 +43,8 @@ const TIME_SLOTS = [
 export const DayCalendar: React.FC<DayCalendarProps> = ({ 
   selectedDate,
   schedule,
-  loading
+  loading,
+  onScheduleUpdate
 }) => {
   const { currentBusiness } = useAuth();
   const { services, fetchServices } = useServiceStore();
@@ -153,82 +155,30 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   
   // Handle save booking
   const handleSaveBooking = async (data: BookingFormData) => {
+    if (!currentBusiness?.business_id) return;
+
     try {
-      if (!currentBusiness?.business_id) {
-        toast.error('No hay un negocio seleccionado');
-        return;
-      }
-
-      if (!data.professional_id) {
-        toast.error('Debes seleccionar un profesional');
-        return;
-      }
-
-      const bookingData = {
-        professional_id: data.professional_id.toString(),
-        start_datetime: data.start_datetime,
-        end_datetime: data.end_datetime,
-        creation_method: "WEB",
-        creator_type: "OWN",
-        // Si es una reserva y hay servicio seleccionado, incluirlo
-        ...(data.booking_type === 'reservation' && data.service_id && {
-          service_id: data.service_id.toString()
-        }),
-        // Si es un bloqueo, incluir título
-        ...(data.booking_type === 'block' && data.title && {
-          title: data.title
-        })
-      };
-
-      if (isEditing && currentBooking) {
-        // Actualizar reserva existente
-        const response = await axios.put(
+      if (currentBooking) {
+        // Update existing booking
+        await axios.put(
           ENDPOINTS.BOOKING_UPDATE(currentBusiness.business_id, currentBooking.booking_id),
-          bookingData
+          data
         );
-
-        if (response.status === 200) {
-          toast.success('Reserva actualizada correctamente');
-          // Recargar los datos del día
-          if (currentBusiness?.business_id) {
-            const response = await axios.get(
-              ENDPOINTS.BUSINESS_SCHEDULE(currentBusiness.business_id),
-              { params: { date: format(selectedDate, 'yyyy-MM-dd') } }
-            );
-            // El componente padre se encargará de actualizar el schedule
-            if (response.data && response.data.length > 0) {
-              // Aquí no necesitamos hacer nada porque el componente padre
-              // actualizará el schedule a través de las props
-            }
-          }
-        }
+        toast.success("La reserva se ha actualizado correctamente");
       } else {
-        // Crear nueva reserva
-        const response = await axios.post(
+        // Create new booking
+        await axios.post(
           ENDPOINTS.BOOKING_CREATE(currentBusiness.business_id),
-          bookingData
+          data
         );
-
-        if (response.status === 201) {
-          toast.success('Reserva creada correctamente');
-          // Recargar los datos del día
-          if (currentBusiness?.business_id) {
-            const response = await axios.get(
-              ENDPOINTS.BUSINESS_SCHEDULE(currentBusiness.business_id),
-              { params: { date: format(selectedDate, 'yyyy-MM-dd') } }
-            );
-            // El componente padre se encargará de actualizar el schedule
-            if (response.data && response.data.length > 0) {
-              // Aquí no necesitamos hacer nada porque el componente padre
-              // actualizará el schedule a través de las props
-            }
-          }
-        }
+        toast.success("La reserva se ha creado correctamente");
       }
+      
       setDialogOpen(false);
-    } catch (error) {
-      console.error('Error al guardar la reserva:', error);
-      toast.error('Error al guardar la reserva');
+      setCurrentBooking(null);
+      onScheduleUpdate(); // Notificar que hubo un cambio
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || "No se pudo procesar la operación");
     }
   };
   

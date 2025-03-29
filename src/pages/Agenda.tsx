@@ -16,13 +16,18 @@ const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { currentBusiness } = useAuth();
   const { fetchDailySchedule, schedule, loading } = useCalendarStore();
+  const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
 
-  // Cargar datos cuando cambie la fecha o el negocio
+  // Cargar datos cuando cambie la fecha, el negocio o haya una actualización
   useEffect(() => {
     if (currentBusiness?.business_id) {
       fetchDailySchedule(currentBusiness.business_id, selectedDate);
     }
-  }, [currentBusiness?.business_id, selectedDate, fetchDailySchedule]);
+  }, [currentBusiness?.business_id, selectedDate, fetchDailySchedule, lastUpdate]);
+
+  const handleScheduleUpdate = () => {
+    setLastUpdate(Date.now());
+  };
 
   return (
     <AppSidebarWrapper>
@@ -79,6 +84,7 @@ const Agenda = () => {
               selectedDate={selectedDate} 
               schedule={schedule}
               loading={loading}
+              onScheduleUpdate={handleScheduleUpdate}
             />
           </div>
         </div>

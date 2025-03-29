@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { format, parseISO, addMinutes } from "date-fns";
 import { es } from "date-fns/locale";
@@ -25,6 +24,16 @@ import { TimePicker } from "@/components/calendar/TimePicker";
 import { Booking, BookingFormData, BookingType } from "@/types/booking";
 import { Professional } from "@/types/professional";
 import { Service } from "@/types/service";
+import axios from "axios";
+import { ENDPOINTS } from "@/config/api";
+import { useAuth } from "@/stores/authContext";
+import { toast } from "sonner";
+
+interface Client {
+  client_id: number;
+  fullname: string;
+  phone: string;
+}
 
 // Mock clients for demo purposes
 const mockClients = [
@@ -65,14 +74,38 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   const [serviceId, setServiceId] = useState<string | undefined>(undefined);
   const [clientId, setClientId] = useState<number | undefined>(undefined);
   const [clientName, setClientName] = useState<string>("");
-  const [filteredClients, setFilteredClients] = useState(mockClients);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [startTime, setStartTime] = useState<string>("09:00");
   const [endTime, setEndTime] = useState<string>("09:30");
   const [title, setTitle] = useState<string>("");
+  const { currentBusiness } = useAuth();
 
   // Filter working professionals
   const workingProfessionals = professionals?.filter(p => p.availabilities && p.availabilities.length > 0) || [];
+
+  // Cargar clientes cuando se abre el diálogo
+  useEffect(() => {
+    const fetchClients = async () => {
+      if (!currentBusiness?.business_id) return;
+      
+      try {
+        const response = await axios.get<Client[]>(
+          `${ENDPOINTS.BUSINESSES}${currentBusiness.business_id}/clients/`
+        );
+        setClients(response.data);
+      } catch (error) {
+        console.error('Error al cargar los clientes:', error);
+        toast.error('No se pudieron cargar los clientes');
+      }
+    };
+
+    if (isOpen) {
+      fetchClients();
+    }
+  }, [isOpen, currentBusiness?.business_id]);
 
   useEffect(() => {
     if (isOpen) {
@@ -80,7 +113,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
         // Edit mode - populate with existing booking data
         setBookingType(booking.title ? "block" : "reservation");
         setProfessionalId(booking.professional?.professional_id?.toString());
-        setServiceId(booking.service?.id?.toString());
+        setServiceId(booking.service?.service_id?.toString());
         setClientId(booking.client?.client_id);
         setClientName(booking.client?.fullname || "");
         
@@ -121,7 +154,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   // Update end time when service is selected
   useEffect(() => {
     if (serviceId) {
-      const selectedService = services.find(service => service.id?.toString() === serviceId);
+      const selectedService = services.find(service => service.service_id?.toString() === serviceId);
       if (selectedService && selectedService.duration) {
         const startDate = new Date(`${date}T${startTime}`);
         const endDate = addMinutes(startDate, selectedService.duration);
@@ -133,25 +166,24 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   // Filter clients as user types
   const handleClientSearch = (value: string) => {
     setClientName(value);
-    setClientId(undefined); // Clear selected client id when typing manually
+    setSelectedClient(null);
     
-    // Filter clients based on input
     if (value) {
-      const filtered = mockClients.filter(client => 
+      const filtered = clients.filter(client => 
         client.fullname.toLowerCase().includes(value.toLowerCase()) ||
         client.phone.includes(value)
       );
       setFilteredClients(filtered);
       setShowClientDropdown(true);
     } else {
-      setFilteredClients(mockClients);
+      setFilteredClients(clients);
       setShowClientDropdown(false);
     }
   };
 
   // Handle client selection from dropdown
-  const handleClientSelect = (client: { id: number; fullname: string }) => {
-    setClientId(client.id);
+  const handleClientSelect = (client: Client) => {
+    setSelectedClient(client);
     setClientName(client.fullname);
     setShowClientDropdown(false);
   };
@@ -159,13 +191,13 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   const handleInputFocus = () => {
     if (clientName) {
       // Only show dropdown if there's already text
-      const filtered = mockClients.filter(client => 
+      const filtered = clients.filter(client => 
         client.fullname.toLowerCase().includes(clientName.toLowerCase()) ||
         client.phone.includes(clientName)
       );
       setFilteredClients(filtered);
     } else {
-      setFilteredClients(mockClients);
+      setFilteredClients(clients);
     }
     setShowClientDropdown(true);
   };
@@ -181,11 +213,16 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
     };
     
     if (bookingType === "reservation") {
+      // Convertir service_id a número si existe
       formData.service_id = serviceId ? parseInt(serviceId) : undefined;
-      formData.client_id = clientId;
-      // If no client ID but there's a name, pass the name for creating a new client
-      if (!clientId && clientName) {
-        formData.client_name = clientName;
+      
+      // Si se seleccionó un cliente existente
+      if (selectedClient) {
+        formData.client_id = selectedClient.client_id; // Ya es number
+      } 
+      // Si se introdujo un nuevo nombre de cliente
+      else if (clientName.trim()) {
+        formData.new_client = clientName.trim();
       }
     } else {
       formData.title = title;
@@ -263,7 +300,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                           setEndTime(format(endDate, "HH:mm"));
                         } else {
                           // If service selected, update end time based on service duration
-                          const selectedService = services.find(service => service.id?.toString() === serviceId);
+                          const selectedService = services.find(service => service.service_id?.toString() === serviceId);
                           if (selectedService && selectedService.duration) {
                             const startDate = new Date(`${date}T${newTime}`);
                             const endDate = addMinutes(startDate, selectedService.duration);
@@ -295,15 +332,16 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                         <SelectValue placeholder="Seleccionar servicio" />
                       </SelectTrigger>
                       <SelectContent>
-                        {services?.filter(service => service.id !== undefined && service.id !== null)
-                          .map((service) => (
+                        {services?.map((service) => (
+                          service.service_id && (
                             <SelectItem 
-                              key={service.id} 
-                              value={service.id.toString()}
+                              key={service.service_id} 
+                              value={service.service_id.toString()}
                             >
                               {service.name} ({service.duration} min)
                             </SelectItem>
-                          ))}
+                          )
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -330,7 +368,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                         <ul className="absolute z-10 mt-1 bg-white border rounded-md shadow-lg w-full max-h-60 overflow-y-auto">
                           {filteredClients.map(client => (
                             <li 
-                              key={client.id}
+                              key={client.client_id}
                               className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex justify-between"
                               onClick={() => handleClientSelect(client)}
                             >
@@ -342,7 +380,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                       )}
                       
                       <p className="text-xs text-gray-500 mt-1">
-                        {clientId 
+                        {selectedClient 
                           ? "Cliente seleccionado de la base de datos" 
                           : clientName 
                             ? "Se creará un nuevo cliente con este nombre" 
