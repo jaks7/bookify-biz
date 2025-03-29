@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from "react";
 import { format, parseISO, addMinutes } from "date-fns";
 import { es } from "date-fns/locale";
-import { X, Calendar, Clock, User, FileText, Bookmark } from "lucide-react";
+import { X, Calendar, Clock, User, FileText, Bookmark, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,29 @@ import { TimePicker } from "@/components/calendar/TimePicker";
 import { Booking, BookingFormData, BookingType } from "@/types/booking";
 import { Professional } from "@/types/professional";
 import { Service } from "@/types/service";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+// Mock clients for demo purposes
+const mockClients = [
+  { id: 1, fullname: "María López", phone: "612345678" },
+  { id: 2, fullname: "Juan García", phone: "623456789" },
+  { id: 3, fullname: "Ana Martínez", phone: "634567890" },
+  { id: 4, fullname: "Pedro Rodríguez", phone: "645678901" },
+  { id: 5, fullname: "Laura Sánchez", phone: "656789012" },
+];
 
 interface BookingDialogProps {
   isOpen: boolean;
@@ -52,12 +76,23 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   const [professionalId, setProfessionalId] = useState<string | undefined>(undefined);
   const [serviceId, setServiceId] = useState<string | undefined>(undefined);
   const [clientId, setClientId] = useState<number | undefined>(undefined);
+  const [clientName, setClientName] = useState<string>("");
+  const [clientSearch, setClientSearch] = useState<string>("");
   const [startTime, setStartTime] = useState<string>("09:00");
   const [endTime, setEndTime] = useState<string>("09:30");
   const [title, setTitle] = useState<string>("");
+  const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
 
   // Filter working professionals
   const workingProfessionals = professionals?.filter(p => p.availabilities && p.availabilities.length > 0) || [];
+
+  // Filter clients based on search
+  const filteredClients = clientSearch
+    ? mockClients.filter(client => 
+        client.fullname.toLowerCase().includes(clientSearch.toLowerCase()) ||
+        client.phone.includes(clientSearch)
+      )
+    : mockClients;
 
   useEffect(() => {
     if (isOpen) {
@@ -65,8 +100,9 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
         // Edit mode - populate with existing booking data
         setBookingType(booking.title ? "block" : "reservation");
         setProfessionalId(booking.professional?.professional_id?.toString());
-        setServiceId(booking.service?.service_id?.toString());
+        setServiceId(booking.service?.id?.toString());
         setClientId(booking.client?.client_id);
+        setClientName(booking.client?.fullname || "");
         
         // Extract times from datetime strings
         const startDateTime = booking.start_datetime;
@@ -87,6 +123,7 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
         setProfessionalId(defaultProfessionalId?.toString());
         setServiceId(undefined);
         setClientId(undefined);
+        setClientName("");
         setTitle("");
         
         // Default to selected time slot or 9:00
@@ -99,6 +136,19 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
       }
     }
   }, [isOpen, booking, defaultProfessionalId, date]);
+
+  // Handle client selection from dropdown
+  const handleClientSelect = (client: { id: number; fullname: string }) => {
+    setClientId(client.id);
+    setClientName(client.fullname);
+    setClientPopoverOpen(false);
+  };
+
+  // Handle manual client name input
+  const handleClientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setClientName(e.target.value);
+    setClientId(undefined); // Clear selected client id when typing manually
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +163,10 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
     if (bookingType === "reservation") {
       formData.service_id = serviceId ? parseInt(serviceId) : undefined;
       formData.client_id = clientId;
+      // If no client ID but there's a name, pass the name for creating a new client
+      if (!clientId && clientName) {
+        formData.client_name = clientName;
+      }
     } else {
       formData.title = title;
     }
@@ -204,11 +258,11 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                         <SelectValue placeholder="Seleccionar servicio" />
                       </SelectTrigger>
                       <SelectContent>
-                        {services?.filter(service => service.service_id !== undefined && service.service_id !== null)
+                        {services?.filter(service => service.id !== undefined && service.id !== null)
                           .map((service) => (
                             <SelectItem 
-                              key={service.service_id} 
-                              value={service.service_id.toString()}
+                              key={service.id} 
+                              value={service.id.toString()}
                             >
                               {service.name} ({service.duration} min)
                             </SelectItem>
@@ -219,18 +273,60 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                   
                   <div className="grid gap-2">
                     <Label htmlFor="client">Cliente</Label>
-                    <div className="flex">
-                      <Input 
-                        id="client"
-                        type="text"
-                        placeholder="Buscar cliente por nombre o teléfono"
-                        className="rounded-r-none"
-                        disabled={true}
-                        value={booking?.client?.fullname || ""}
-                      />
-                      <Button type="button" className="rounded-l-none">
-                        Buscar
-                      </Button>
+                    <div>
+                      <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <div className="flex">
+                            <Input 
+                              id="client"
+                              type="text"
+                              placeholder="Buscar o introducir nombre de cliente"
+                              className="rounded-r-none w-full"
+                              value={clientName}
+                              onChange={handleClientNameChange}
+                            />
+                            <Button 
+                              type="button" 
+                              className="rounded-l-none px-3" 
+                              variant="secondary"
+                              onClick={() => setClientPopoverOpen(true)}
+                            >
+                              <Search className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0 w-[300px]" side="bottom" align="start">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Buscar por nombre o teléfono"
+                              value={clientSearch}
+                              onValueChange={setClientSearch}
+                            />
+                            <CommandList>
+                              <CommandEmpty>No se encontraron resultados</CommandEmpty>
+                              <CommandGroup>
+                                {filteredClients.map(client => (
+                                  <CommandItem
+                                    key={client.id}
+                                    onSelect={() => handleClientSelect(client)}
+                                    className="flex justify-between"
+                                  >
+                                    <div>{client.fullname}</div>
+                                    <div className="text-xs text-gray-500">{client.phone}</div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {clientId 
+                          ? "Cliente seleccionado de la base de datos" 
+                          : clientName 
+                            ? "Se creará un nuevo cliente con este nombre" 
+                            : "Introduce un nombre o selecciona de la lista"}
+                      </p>
                     </div>
                   </div>
                 </TabsContent>

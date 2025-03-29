@@ -1,45 +1,50 @@
 
+export type BookingStatus = "confirmed" | "cancelled" | "pending";
+export type BookingType = "reservation" | "block";
+
 export interface Client {
-  client_id: number;
-  name: string;
-  surnames: string;
+  client_id?: number;
   fullname: string;
-  phone: string;
-}
-
-export interface BookingProfessional {
-  professional_id: number;
-  name: string;
-  surnames: string;
-  fullname: string;
-}
-
-export interface BookingService {
-  service_id: number;
-  name: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface Booking {
   booking_id: string;
-  business: string;
-  start_datetime: string;
-  end_datetime: string;
   client?: Client;
-  professional?: BookingProfessional;
-  service?: BookingService;
-  cancelled: boolean;
-  duration: number;
-  title?: string; // Present for calendar blocks, absent for client bookings
+  client_name?: string;
+  service?: {
+    id?: string | number;
+    name: string;
+    duration?: number;
+  };
+  service_name?: string;
+  professional?: {
+    professional_id?: number;
+    name: string;
+  };
+  professional_name?: string;
+  professional_id?: number;
+  status?: BookingStatus;
+  title?: string;
+  start_datetime: string;
+  datetime_start?: string;
+  end_datetime: string;
+  datetime_end?: string;
+  notes?: string;
+  color?: string;
 }
 
-export type BookingType = "reservation" | "block";
-
 export interface BookingFormData {
-  title?: string;
+  booking_id?: string;
+  booking_type: BookingType;
+  client_id?: number;
+  client_name?: string;
+  service_id?: number;
   professional_id?: number;
   start_datetime: string;
   end_datetime: string;
-  client_id?: number;
-  service_id?: number;
-  booking_type: BookingType;
+  title?: string;
+  notes?: string;
+  status?: BookingStatus;
 }

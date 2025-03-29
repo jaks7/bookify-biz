@@ -1,60 +1,66 @@
 
-import React from 'react';
-import { format, parse } from 'date-fns';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Clock } from "lucide-react";
 
 interface TimePickerProps {
   value: string;
   onChange: (time: string) => void;
-  step?: number; // Minutes between options (default: 30)
-  label?: string;
-  id?: string;
-  className?: string;
+  step?: number;
+  disabled?: boolean;
 }
+
+// Generate time options in 15 (or custom) minute increments from 00:00 to 23:45
+const generateTimeOptions = (step: number = 15) => {
+  const options: string[] = [];
+  const totalMinutesInDay = 24 * 60;
+  
+  for (let minutes = 0; minutes < totalMinutesInDay; minutes += step) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    const formattedHours = hours.toString().padStart(2, '0');
+    const formattedMins = mins.toString().padStart(2, '0');
+    
+    options.push(`${formattedHours}:${formattedMins}`);
+  }
+  
+  return options;
+};
 
 export const TimePicker: React.FC<TimePickerProps> = ({ 
   value, 
   onChange, 
-  step = 30, 
-  label, 
-  id,
-  className 
+  step = 15,
+  disabled = false
 }) => {
-  // Generate time options from 00:00 to 23:59 with specified step
-  const generateTimeOptions = () => {
-    const options: string[] = [];
-    const totalMinutesInDay = 24 * 60;
-    
-    for (let minutes = 0; minutes < totalMinutesInDay; minutes += step) {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      options.push(
-        `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
-      );
-    }
-    
-    return options;
-  };
-
-  const timeOptions = generateTimeOptions();
-
+  const timeOptions = generateTimeOptions(step);
+  
   return (
-    <div className={className}>
-      {label && <Label htmlFor={id}>{label}</Label>}
-      <Select value={value} onValueChange={onChange} id={id}>
-        <SelectTrigger className={cn("w-full", className)}>
+    <Select 
+      value={value} 
+      onValueChange={onChange}
+      disabled={disabled}
+    >
+      <SelectTrigger className="w-full">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-gray-500" />
           <SelectValue placeholder="Seleccionar hora" />
-        </SelectTrigger>
-        <SelectContent className="max-h-[300px]">
-          {timeOptions.map((time) => (
-            <SelectItem key={time} value={time}>
-              {time}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+        </div>
+      </SelectTrigger>
+      <SelectContent>
+        {timeOptions.map((time) => (
+          <SelectItem key={time} value={time}>
+            {time}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 };
