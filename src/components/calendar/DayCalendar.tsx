@@ -151,7 +151,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate, schedule
         professionals={schedule.professionals}
         services={mockServices}
         isEditing={isEditing}
-        selectedTime={selectedTime} // Pass the selected time to the dialog
+        selectedTime={selectedTime}
       />
     </div>
   );

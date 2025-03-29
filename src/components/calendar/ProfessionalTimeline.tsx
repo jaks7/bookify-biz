@@ -1,160 +1,50 @@
 
 import React from "react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Clock, User, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Professional, Appointment } from "@/types/professional";
+import { Booking } from "@/types/booking";
 
-interface ProfessionalTimelineProps {
-  professional: Professional;
-  selectedDate: Date;
+export interface ProfessionalTimelineProps {
+  time?: string;
+  booking?: Booking | undefined;
+  isAvailable: boolean;
+  onAddBooking: () => void;
+  onEditBooking: (booking: Booking) => void;
 }
 
 export const ProfessionalTimeline: React.FC<ProfessionalTimelineProps> = ({
-  professional,
-  selectedDate,
+  time,
+  booking,
+  isAvailable,
+  onAddBooking,
+  onEditBooking,
 }) => {
-  if (professional.isWorking === false) return null;
-
-  // Generate time slots from 9:00 to 19:00 with 30 minute intervals
-  const generateTimeSlots = () => {
-    const slots = [];
-    const hours = ["09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"];
-    
-    for (const hour of hours) {
-      for (const minute of ["00", "30"]) {
-        const time = `${hour}:${minute}`;
-        const appointment = professional.appointments?.find(
-          (apt) => apt.time === time
-        );
-        
-        slots.push({
-          id: `${selectedDate.toISOString()}-${time}`,
-          time,
-          reserved: !!appointment,
-          appointment,
-        });
-      }
+  const handleClick = () => {
+    if (booking) {
+      onEditBooking(booking);
+    } else if (isAvailable) {
+      onAddBooking();
     }
-    
-    return slots;
-  };
-
-  const timeSlots = generateTimeSlots();
-  
-  // Check if the given time is within working hours
-  const isWithinWorkingHours = (timeString: string) => {
-    if (!professional.workingHours) return false;
-    return professional.workingHours.some(({ start, end }) => {
-      return timeString >= start && timeString <= end;
-    });
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
-  };
-
-  // Format time string to be more readable
-  const formatTimeDisplay = (time: string) => {
-    return time;
-  };
-
-  // Calculate end time based on start time (assuming 30 min slots)
-  const calculateEndTime = (startTime: string) => {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    let endHours = hours;
-    let endMinutes = minutes + 30;
-    
-    if (endMinutes >= 60) {
-      endHours += 1;
-      endMinutes = 0;
-    }
-    
-    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
   };
 
   return (
-    <Card className="border-gray-200 shadow-sm mb-4">
-      <CardHeader className="py-3 px-4 bg-gray-50 border-b border-gray-200">
-        <CardTitle className="text-md flex items-center gap-2">
-          <Avatar className="h-6 w-6">
-            <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
-              {getInitials(professional.name)}
-            </AvatarFallback>
-          </Avatar>
-          {professional.name}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4">
-        <div className="grid gap-2">
-          {timeSlots.map((slot) => {
-            const isAvailable = isWithinWorkingHours(slot.time);
-            const endTime = calculateEndTime(slot.time);
-            
-            return (
-              <div 
-                key={slot.id}
-                className={cn(
-                  "p-3 rounded-lg border flex items-center justify-between transition-all",
-                  slot.reserved 
-                    ? "bg-rose-50 border-rose-200" 
-                    : isAvailable 
-                      ? "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 cursor-pointer"
-                      : "bg-gray-100 border-gray-200"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "p-1.5 rounded-full",
-                    slot.reserved ? "bg-rose-100 text-rose-600" : 
-                    isAvailable ? "bg-emerald-100 text-emerald-600" : "bg-gray-200 text-gray-500"
-                  )}>
-                    <Clock className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex flex-col">
-                    <div className="font-medium text-gray-800 text-sm leading-tight">{formatTimeDisplay(slot.time)}</div>
-                    <div className="text-xs text-gray-500 leading-tight">{endTime}</div>
-                    {slot.appointment && (
-                      <div className="text-sm text-gray-500 flex items-center mt-1">
-                        <User className="h-3 w-3 mr-1" /> 
-                        {slot.appointment.clientName}
-                        <span className="mx-1">•</span>
-                        <Bookmark className="h-3 w-3 mr-1" /> 
-                        {slot.appointment.service}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center">
-                  {slot.reserved ? (
-                    <div className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full text-xs font-medium flex items-center">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Reservado
-                    </div>
-                  ) : isAvailable ? (
-                    <div className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full text-xs font-medium flex items-center">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Disponible
-                    </div>
-                  ) : (
-                    <div className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-medium">
-                      Fuera de horario
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+    <div 
+      className={cn(
+        "h-10 border-l relative",
+        booking 
+          ? "bg-blue-50 cursor-pointer" 
+          : isAvailable 
+            ? "hover:bg-green-50 cursor-pointer" 
+            : "bg-gray-50"
+      )}
+      onClick={handleClick}
+    >
+      {booking && (
+        <div className="absolute inset-0 p-1 overflow-hidden">
+          <div className="bg-blue-100 text-blue-800 text-xs rounded h-full flex items-center px-2 truncate">
+            {booking.client_name || booking.service_name || "Reservado"}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
