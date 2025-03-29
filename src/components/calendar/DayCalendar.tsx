@@ -35,6 +35,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate, schedule
   const [selectedBooking, setSelectedBooking] = useState<Booking | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined); // Add state for selected time
+  const [selectedProfessionalId, setSelectedProfessionalId] = useState<number | undefined>(undefined);
   
   // Mock data for services
   const mockServices: Service[] = [
@@ -47,6 +48,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate, schedule
     setSelectedBooking(undefined);
     setIsEditing(false);
     setSelectedTime(time); // Set the selected time
+    setSelectedProfessionalId(professionalId);
     setIsDialogOpen(true);
   };
 
@@ -54,6 +56,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate, schedule
     setSelectedBooking(booking);
     setIsEditing(true);
     setSelectedTime(undefined); // No specific time for editing
+    setSelectedProfessionalId(undefined);
     setIsDialogOpen(true);
   };
 
@@ -152,6 +155,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate, schedule
         services={mockServices}
         isEditing={isEditing}
         selectedTime={selectedTime}
+        defaultProfessionalId={selectedProfessionalId}
       />
     </div>
   );
