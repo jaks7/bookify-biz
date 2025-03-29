@@ -25,20 +25,6 @@ import { TimePicker } from "@/components/calendar/TimePicker";
 import { Booking, BookingFormData, BookingType } from "@/types/booking";
 import { Professional } from "@/types/professional";
 import { Service } from "@/types/service";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 
 // Mock clients for demo purposes
 const mockClients = [
@@ -77,22 +63,14 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   const [serviceId, setServiceId] = useState<string | undefined>(undefined);
   const [clientId, setClientId] = useState<number | undefined>(undefined);
   const [clientName, setClientName] = useState<string>("");
-  const [clientSearch, setClientSearch] = useState<string>("");
+  const [filteredClients, setFilteredClients] = useState(mockClients);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [startTime, setStartTime] = useState<string>("09:00");
   const [endTime, setEndTime] = useState<string>("09:30");
   const [title, setTitle] = useState<string>("");
-  const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
 
   // Filter working professionals
   const workingProfessionals = professionals?.filter(p => p.availabilities && p.availabilities.length > 0) || [];
-
-  // Filter clients based on search
-  const filteredClients = clientSearch
-    ? mockClients.filter(client => 
-        client.fullname.toLowerCase().includes(clientSearch.toLowerCase()) ||
-        client.phone.includes(clientSearch)
-      )
-    : mockClients;
 
   useEffect(() => {
     if (isOpen) {
@@ -137,17 +115,44 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
     }
   }, [isOpen, booking, defaultProfessionalId, date]);
 
+  // Filter clients as user types
+  const handleClientSearch = (value: string) => {
+    setClientName(value);
+    setClientId(undefined); // Clear selected client id when typing manually
+    
+    // Filter clients based on input
+    if (value) {
+      const filtered = mockClients.filter(client => 
+        client.fullname.toLowerCase().includes(value.toLowerCase()) ||
+        client.phone.includes(value)
+      );
+      setFilteredClients(filtered);
+      setShowClientDropdown(true);
+    } else {
+      setFilteredClients(mockClients);
+      setShowClientDropdown(false);
+    }
+  };
+
   // Handle client selection from dropdown
   const handleClientSelect = (client: { id: number; fullname: string }) => {
     setClientId(client.id);
     setClientName(client.fullname);
-    setClientPopoverOpen(false);
+    setShowClientDropdown(false);
   };
 
-  // Handle manual client name input
-  const handleClientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setClientName(e.target.value);
-    setClientId(undefined); // Clear selected client id when typing manually
+  const handleInputFocus = () => {
+    if (clientName) {
+      // Only show dropdown if there's already text
+      const filtered = mockClients.filter(client => 
+        client.fullname.toLowerCase().includes(clientName.toLowerCase()) ||
+        client.phone.includes(clientName)
+      );
+      setFilteredClients(filtered);
+    } else {
+      setFilteredClients(mockClients);
+    }
+    setShowClientDropdown(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -273,53 +278,37 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                   
                   <div className="grid gap-2">
                     <Label htmlFor="client">Cliente</Label>
-                    <div>
-                      <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
-                        <PopoverTrigger asChild>
-                          <div className="flex">
-                            <Input 
-                              id="client"
-                              type="text"
-                              placeholder="Buscar o introducir nombre de cliente"
-                              className="rounded-r-none w-full"
-                              value={clientName}
-                              onChange={handleClientNameChange}
-                            />
-                            <Button 
-                              type="button" 
-                              className="rounded-l-none px-3" 
-                              variant="secondary"
-                              onClick={() => setClientPopoverOpen(true)}
+                    <div className="relative">
+                      <div className="flex">
+                        <div className="bg-gray-100 p-2 rounded-l-md border-y border-l">
+                          <User className="h-5 w-5 text-gray-500" />
+                        </div>
+                        <Input 
+                          id="client"
+                          type="text"
+                          placeholder="Buscar o introducir nombre de cliente"
+                          className="rounded-l-none w-full"
+                          value={clientName}
+                          onChange={(e) => handleClientSearch(e.target.value)}
+                          onFocus={handleInputFocus}
+                        />
+                      </div>
+                      
+                      {showClientDropdown && filteredClients.length > 0 && (
+                        <ul className="absolute z-10 mt-1 bg-white border rounded-md shadow-lg w-full max-h-60 overflow-y-auto">
+                          {filteredClients.map(client => (
+                            <li 
+                              key={client.id}
+                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex justify-between"
+                              onClick={() => handleClientSelect(client)}
                             >
-                              <Search className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="p-0 w-[300px]" side="bottom" align="start">
-                          <Command>
-                            <CommandInput 
-                              placeholder="Buscar por nombre o teléfono"
-                              value={clientSearch}
-                              onValueChange={setClientSearch}
-                            />
-                            <CommandList>
-                              <CommandEmpty>No se encontraron resultados</CommandEmpty>
-                              <CommandGroup>
-                                {filteredClients.map(client => (
-                                  <CommandItem
-                                    key={client.id}
-                                    onSelect={() => handleClientSelect(client)}
-                                    className="flex justify-between"
-                                  >
-                                    <div>{client.fullname}</div>
-                                    <div className="text-xs text-gray-500">{client.phone}</div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                              <span>{client.fullname}</span>
+                              <span className="text-xs text-gray-500">{client.phone}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      
                       <p className="text-xs text-gray-500 mt-1">
                         {clientId 
                           ? "Cliente seleccionado de la base de datos" 
