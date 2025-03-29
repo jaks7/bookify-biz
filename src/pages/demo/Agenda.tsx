@@ -24,7 +24,6 @@ const mockScheduleData: DailyScheduleData = {
   professionals: [
     {
       professional_id: 1,
-      id: 1, // Add id field to match Professional type
       name: "Gema",
       surnames: null,
       fullname: "Gema None",
@@ -37,7 +36,6 @@ const mockScheduleData: DailyScheduleData = {
     },
     {
       professional_id: 2,
-      id: 2, // Add id field to match Professional type
       name: "Ana",
       surnames: null,
       fullname: "Ana None",
@@ -81,7 +79,6 @@ const generateMockDataForDate = (date: Date): DailyScheduleData => {
     professionals: [
       {
         professional_id: 1,
-        id: 1, // Add id field to match Professional type
         name: "Gema",
         surnames: null,
         fullname: "Gema None",
@@ -94,7 +91,6 @@ const generateMockDataForDate = (date: Date): DailyScheduleData => {
       },
       {
         professional_id: 2,
-        id: 2, // Add id field to match Professional type
         name: "Ana",
         surnames: null,
         fullname: "Ana None",

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { es } from "date-fns/locale";
@@ -11,51 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DayCalendar } from "@/components/calendar/DayCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
-import { DailyScheduleData } from "@/types/professional";
-
-// Mock data to pass to DayCalendar component
-const generateMockData = (date: Date): DailyScheduleData => {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  
-  return {
-    date: dateStr,
-    business_hours: [
-      {
-        datetime_start: `${dateStr}T09:00`,
-        datetime_end: `${dateStr}T17:00`
-      }
-    ],
-    professionals: [
-      {
-        professional_id: 1,
-        id: 1,
-        name: "Gema",
-        surnames: null,
-        fullname: "Gema None",
-        availabilities: [
-          {
-            datetime_start: `${dateStr}T09:00:00Z`,
-            datetime_end: `${dateStr}T18:00:00Z`
-          }
-        ]
-      },
-      {
-        professional_id: 2,
-        id: 2,
-        name: "Ana",
-        surnames: null,
-        fullname: "Ana None",
-        availabilities: [
-          {
-            datetime_start: `${dateStr}T09:00:00Z`,
-            datetime_end: `${dateStr}T14:00:00Z`
-          }
-        ]
-      }
-    ],
-    bookings: []
-  };
-};
 
 const generateMonthOccupancy = (month: Date) => {
   const start = startOfMonth(month);
@@ -73,8 +27,6 @@ const CalendarView = () => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [view, setView] = useState<"calendar" | "day">("calendar");
   const [occupancyData] = useState(() => generateMonthOccupancy(currentMonth));
-  const [mockSchedule] = useState(() => generateMockData(selectedDate));
-  const [loading, setLoading] = useState(false);
 
   const handlePrevMonth = () => {
     const prevMonth = new Date(currentMonth);
@@ -230,11 +182,7 @@ const CalendarView = () => {
             </TabsContent>
             
             <TabsContent value="day" className="mt-4">
-              <DayCalendar 
-                selectedDate={selectedDate} 
-                schedule={mockSchedule} 
-                loading={loading} 
-              />
+              <DayCalendar selectedDate={selectedDate} />
             </TabsContent>
           </Tabs>
         </div>
