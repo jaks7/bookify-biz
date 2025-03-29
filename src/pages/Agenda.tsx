@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Calendar as CalendarIcon, List, Grid } from "lucide-react";
@@ -10,9 +9,20 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
+import { useAuth } from "@/stores/authContext";
+import { useCalendarStore } from "@/stores/calendarStore";
 
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const { currentBusiness } = useAuth();
+  const { fetchDailySchedule, schedule, loading } = useCalendarStore();
+
+  // Cargar datos cuando cambie la fecha o el negocio
+  useEffect(() => {
+    if (currentBusiness?.business_id) {
+      fetchDailySchedule(currentBusiness.business_id, selectedDate);
+    }
+  }, [currentBusiness?.business_id, selectedDate, fetchDailySchedule]);
 
   return (
     <AppSidebarWrapper>
@@ -65,7 +75,11 @@ const Agenda = () => {
           </div>
 
           <div className="mt-8">
-            <DayCalendar selectedDate={selectedDate} />
+            <DayCalendar 
+              selectedDate={selectedDate} 
+              schedule={schedule}
+              loading={loading}
+            />
           </div>
         </div>
       </div>

@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,115 +11,155 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/stores/authContext';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Definición del tipo para clientes
 interface Client {
-  id: number;
+  client_id: string;
   name: string;
-  lastName: string;
+  surnames: string;
   phone: string;
-  email: string;
-  postalCode: string;
+  email?: string;
+  postal_code?: string;
+  fullname: string;
+  business: string;
 }
-
-// Mock data para clientes
-const mockClients: Client[] = [
-  { 
-    id: 1, 
-    name: "Laura", 
-    lastName: "Fernández", 
-    phone: "666123456", 
-    email: "laura.fernandez@example.com", 
-    postalCode: "28001" 
-  },
-  { 
-    id: 2, 
-    name: "Miguel", 
-    lastName: "Sánchez", 
-    phone: "677234567", 
-    email: "miguel.sanchez@example.com", 
-    postalCode: "08001" 
-  },
-  { 
-    id: 3, 
-    name: "Carmen", 
-    lastName: "López", 
-    phone: "688345678", 
-    email: "carmen.lopez@example.com", 
-    postalCode: "46001" 
-  },
-];
 
 // Schema para validar el formulario de cliente
 const clientSchema = z.object({
-  name: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres" }),
-  lastName: z.string().min(2, { message: "Los apellidos deben tener al menos 2 caracteres" }),
-  phone: z.string().min(9, { message: "El teléfono debe tener al menos 9 dígitos" }),
-  email: z.string().email({ message: "Introduce un email válido" }),
-  postalCode: z.string().min(4, { message: "El código postal debe tener al menos 4 dígitos" }),
+  name: z.string().nullable(),
+  surnames: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  postal_code: z.string().nullable(),
+}).transform((data) => {
+  // Convertir strings vacíos a null
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [
+      key,
+      value === "" || !value ? null : value
+    ])
+  );
 });
 
-type ClientFormValues = z.infer<typeof clientSchema>;
+type ClientFormValues = {
+  name: string | null;
+  surnames: string | null;
+  phone: string | null;
+  email: string | null;
+  postal_code: string | null;
+};
 
 const Clients = () => {
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<null | Client>(null);
   const [selectedClient, setSelectedClient] = useState<null | Client>(null);
   const { toast } = useToast();
+  const { isAuthenticated, currentBusiness } = useAuth();
+  const navigate = useNavigate();
+  const businessId = currentBusiness?.business_id;
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
-      name: "",
-      lastName: "",
-      phone: "",
-      email: "",
-      postalCode: "",
+      name: null,
+      surnames: null,
+      phone: null,
+      email: null,
+      postal_code: null,
     },
   });
 
-  const onSubmit = (values: ClientFormValues) => {
-    if (editingClient) {
-      // Update existing client
-      setClients(clients.map(client => 
-        client.id === editingClient.id 
-          ? { ...client, ...values } 
-          : client
-      ));
+  const fetchClients = async () => {
+    if (!businessId) return;
+    try {
+      const response = await axios.get<Client[]>(
+        `http://127.0.0.1:8000/business/${businessId}/clients/`
+      );
+      setClients(response.data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      setClients([]);
       toast({
-        title: "Cliente actualizado",
-        description: `${values.name} ${values.lastName} ha sido actualizado correctamente.`,
+        title: "Error",
+        description: "No se pudieron cargar los clientes",
+        variant: "destructive",
       });
-    } else {
-      // Add new client with all required properties
-      const newClient: Client = {
-        id: clients.length ? Math.max(...clients.map(c => c.id)) + 1 : 1,
-        name: values.name,
-        lastName: values.lastName,
-        phone: values.phone,
-        email: values.email,
-        postalCode: values.postalCode
-      };
-      setClients([...clients, newClient]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!businessId) {
+      navigate('/businesses');
+      return;
+    }
+    fetchClients();
+  }, [isAuthenticated, businessId, navigate]);
+
+  const onSubmit = async (values: ClientFormValues) => {
+    if (!businessId) return;
+    try {
+      // Preparar los datos, eliminando campos nulos
+      const submitData = Object.entries(values).reduce((acc, [key, value]) => {
+        if (value !== null && value.trim() !== "") {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, string>);
+
+      if (editingClient) {
+        // Update existing client
+        await axios.put(
+          `http://127.0.0.1:8000/business/${businessId}/clients/${editingClient.client_id}/update/`,
+          submitData
+        );
+        toast({
+          title: "Cliente actualizado",
+          description: "Cliente actualizado correctamente.",
+        });
+      } else {
+        // Create new client
+        await axios.post(
+          `http://127.0.0.1:8000/business/${businessId}/clients/create/`,
+          submitData
+        );
+        toast({
+          title: "Cliente creado",
+          description: "Cliente creado correctamente.",
+        });
+      }
+      setIsDialogOpen(false);
+      form.reset();
+      fetchClients();
+    } catch (error: any) {
       toast({
-        title: "Cliente creado",
-        description: `${values.name} ${values.lastName} ha sido añadido correctamente.`,
+        title: "Error",
+        description: error.response?.data?.detail || "No se pudo procesar la operación",
+        variant: "destructive",
       });
     }
-    setIsDialogOpen(false);
-    form.reset();
   };
 
   const openNewClientDialog = () => {
     setEditingClient(null);
     form.reset({
-      name: "",
-      lastName: "",
-      phone: "",
-      email: "",
-      postalCode: "",
+      name: null,
+      surnames: null,
+      phone: null,
+      email: null,
+      postal_code: null,
     });
     setIsDialogOpen(true);
   };
@@ -128,21 +167,33 @@ const Clients = () => {
   const handleEdit = (client: Client) => {
     setEditingClient(client);
     form.reset({
-      name: client.name,
-      lastName: client.lastName,
-      phone: client.phone,
-      email: client.email,
-      postalCode: client.postalCode,
+      name: client.name || null,
+      surnames: client.surnames || null,
+      phone: client.phone || null,
+      email: client.email || null,
+      postal_code: client.postal_code || null,
     });
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (clientId: number) => {
-    setClients(clients.filter(client => client.id !== clientId));
-    toast({
-      title: "Cliente eliminado",
-      description: "El cliente ha sido eliminado correctamente.",
-    });
+  const handleDelete = async (clientId: string) => {
+    if (!businessId) return;
+    try {
+      await axios.delete(
+        `http://127.0.0.1:8000/business/${businessId}/clients/${clientId}/delete/`
+      );
+      toast({
+        title: "Cliente eliminado",
+        description: "El cliente ha sido eliminado correctamente.",
+      });
+      fetchClients();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.detail || "No se pudo eliminar el cliente",
+        variant: "destructive",
+      });
+    }
   };
 
   const openHistoryDialog = (client: Client) => {
@@ -182,32 +233,51 @@ const Clients = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {clients.map((client) => (
-                    <TableRow key={client.id}>
-                      <TableCell className="font-medium">{client.name}</TableCell>
-                      <TableCell>{client.lastName}</TableCell>
-                      <TableCell>{client.phone}</TableCell>
-                      <TableCell>{client.email}</TableCell>
-                      <TableCell>{client.postalCode}</TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="mr-2"
-                          onClick={() => openHistoryDialog(client)}
-                        >
-                          <History className="h-4 w-4 mr-2" />
-                          Historial
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(client)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(client.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                  {loading ? (
+                    Array(3).fill(0).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-[150px]" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-[60px]" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-4 w-[100px] ml-auto" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : clients.length > 0 ? (
+                    clients.map((client) => (
+                      <TableRow key={client.client_id}>
+                        <TableCell className="font-medium">{client.name}</TableCell>
+                        <TableCell>{client.surnames}</TableCell>
+                        <TableCell>{client.phone}</TableCell>
+                        <TableCell>{client.email}</TableCell>
+                        <TableCell>{client.postal_code}</TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mr-2"
+                            onClick={() => openHistoryDialog(client)}
+                          >
+                            <History className="h-4 w-4 mr-2" />
+                            Historial
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(client)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(client.client_id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        No hay clientes registrados
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -232,7 +302,7 @@ const Clients = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nombre</FormLabel>
+                      <FormLabel>Nombre (Opcional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Ej: Laura" {...field} />
                       </FormControl>
@@ -242,10 +312,10 @@ const Clients = () => {
                 />
                 <FormField
                   control={form.control}
-                  name="lastName"
+                  name="surnames"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Apellidos</FormLabel>
+                      <FormLabel>Apellidos (Opcional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Ej: Fernández" {...field} />
                       </FormControl>
@@ -258,7 +328,7 @@ const Clients = () => {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Teléfono</FormLabel>
+                      <FormLabel>Teléfono (Opcional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Ej: 666123456" {...field} />
                       </FormControl>
@@ -271,7 +341,7 @@ const Clients = () => {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Email (Opcional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Ej: cliente@ejemplo.com" type="email" {...field} />
                       </FormControl>
@@ -281,10 +351,10 @@ const Clients = () => {
                 />
                 <FormField
                   control={form.control}
-                  name="postalCode"
+                  name="postal_code"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Código Postal</FormLabel>
+                      <FormLabel>Código Postal (Opcional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Ej: 28001" {...field} />
                       </FormControl>
@@ -293,7 +363,9 @@ const Clients = () => {
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">Guardar</Button>
+                  <Button type="submit">
+                    {editingClient ? "Guardar cambios" : "Crear cliente"}
+                  </Button>
                 </DialogFooter>
               </form>
             </Form>
@@ -305,7 +377,7 @@ const Clients = () => {
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>
-                Historial de {selectedClient?.name} {selectedClient?.lastName}
+                Historial de {selectedClient?.fullname}
               </DialogTitle>
               <DialogDescription>
                 Consulta el historial de citas y servicios del cliente.

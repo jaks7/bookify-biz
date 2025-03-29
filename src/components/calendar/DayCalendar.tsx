@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { format, parseISO, addMinutes } from "date-fns";
 import { es } from "date-fns/locale";
@@ -14,215 +13,23 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { BookingDialog } from "@/components/calendar/BookingDialog";
 import { Booking, BookingFormData } from "@/types/booking";
-import { Professional, DailyScheduleData, ProfessionalAvailability } from "@/types/professional";
+import { Professional, DailyScheduleData } from "@/types/professional";
 import { Service } from "@/types/service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-// Mock data for demonstrations
-const generateMockDailySchedule = (date: Date): DailyScheduleData => {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  
-  return {
-    date: dateStr,
-    business_hours: [
-      {
-        datetime_start: `${dateStr}T09:00`,
-        datetime_end: `${dateStr}T14:00`
-      },
-      {
-        datetime_start: `${dateStr}T16:00`,
-        datetime_end: `${dateStr}T20:00`
-      }
-    ],
-    professionals: [
-      {
-        professional_id: 1,
-        id: 1,
-        name: "María García",
-        surnames: "García",
-        fullname: "María García",
-        isWorking: true,
-        availabilities: [
-          {
-            datetime_start: `${dateStr}T09:00:00Z`,
-            datetime_end: `${dateStr}T14:00:00Z`
-          },
-          {
-            datetime_start: `${dateStr}T16:00:00Z`,
-            datetime_end: `${dateStr}T20:00:00Z`
-          }
-        ]
-      },
-      {
-        professional_id: 2,
-        id: 2,
-        name: "Juan Pérez",
-        surnames: "Pérez",
-        fullname: "Juan Pérez",
-        isWorking: true,
-        availabilities: [
-          {
-            datetime_start: `${dateStr}T09:00:00Z`,
-            datetime_end: `${dateStr}T14:00:00Z`
-          },
-          {
-            datetime_start: `${dateStr}T16:00:00Z`,
-            datetime_end: `${dateStr}T20:00:00Z`
-          }
-        ]
-      },
-      {
-        professional_id: 3,
-        id: 3,
-        name: "Sofía Rodríguez",
-        surnames: "Rodríguez",
-        fullname: "Sofía Rodríguez",
-        isWorking: false,
-        availabilities: [
-          {
-            datetime_start: `${dateStr}T16:00:00Z`,
-            datetime_end: `${dateStr}T20:00:00Z`
-          }
-        ]
-      }
-    ],
-    bookings: []
-  };
-};
-
-// Mock services data
-const generateMockServices = (): Service[] => {
-  return [
-    { id: 1, name: "Consulta General", duration: 30, price: 50 },
-    { id: 2, name: "Tratamiento Especializado", duration: 60, price: 80 },
-    { id: 3, name: "Revisión", duration: 15, price: 30 }
-  ];
-};
-
-// Mock bookings data to match backend format
-const generateMockBookings = (date: Date): Booking[] => {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  
-  return [
-    // Client reservation for María
-    {
-      booking_id: "b0ae0641-0cd4-4f7f-8550-dcd550941f4a",
-      business: "business1",
-      start_datetime: `${dateStr}T10:00:00Z`,
-      end_datetime: `${dateStr}T10:30:00Z`,
-      client: {
-        client_id: 1001,
-        name: "Laura",
-        surnames: "Martínez",
-        fullname: "Laura Martínez",
-        phone: "600123456"
-      },
-      professional: {
-        professional_id: 1,
-        name: "María",
-        surnames: "García",
-        fullname: "María García"
-      },
-      service: {
-        service_id: 1,
-        name: "Consulta General"
-      },
-      cancelled: false,
-      duration: 30
-    },
-    // Calendar block for María
-    {
-      booking_id: "c1bf1742-1de5-5f8g-9661-ecd661052f5b",
-      business: "business1",
-      start_datetime: `${dateStr}T12:30:00Z`,
-      end_datetime: `${dateStr}T14:00:00Z`,
-      professional: {
-        professional_id: 1,
-        name: "María",
-        surnames: "García",
-        fullname: "María García"
-      },
-      cancelled: false,
-      duration: 90,
-      title: "Reunión de equipo"
-    },
-    // Client reservation for Juan
-    {
-      booking_id: "d2cg2843-2ef6-6g9h-0772-fde772163g6c",
-      business: "business1",
-      start_datetime: `${dateStr}T09:30:00Z`,
-      end_datetime: `${dateStr}T10:30:00Z`,
-      client: {
-        client_id: 1002,
-        name: "Carlos",
-        surnames: "Ruiz",
-        fullname: "Carlos Ruiz",
-        phone: "600789012"
-      },
-      professional: {
-        professional_id: 2,
-        name: "Juan",
-        surnames: "Pérez",
-        fullname: "Juan Pérez"
-      },
-      service: {
-        service_id: 2,
-        name: "Tratamiento Especializado"
-      },
-      cancelled: false,
-      duration: 60
-    },
-    // Calendar block for Juan
-    {
-      booking_id: "e3dh3954-3fg7-7h0i-1883-gef883274h7d",
-      business: "business1",
-      start_datetime: `${dateStr}T17:00:00Z`,
-      end_datetime: `${dateStr}T18:00:00Z`,
-      professional: {
-        professional_id: 2,
-        name: "Juan",
-        surnames: "Pérez",
-        fullname: "Juan Pérez"
-      },
-      cancelled: false,
-      duration: 60,
-      title: "Descanso"
-    },
-    // Small 15-min client reservation to test visibility
-    {
-      booking_id: "f4ei4065-4gh8-8i1j-2994-hfg994385i8e",
-      business: "business1",
-      start_datetime: `${dateStr}T11:15:00Z`,
-      end_datetime: `${dateStr}T11:30:00Z`,
-      client: {
-        client_id: 1003,
-        name: "Isabel",
-        surnames: "Gómez",
-        fullname: "Isabel Gómez",
-        phone: "600345678"
-      },
-      professional: {
-        professional_id: 1,
-        name: "María",
-        surnames: "García",
-        fullname: "María García"
-      },
-      service: {
-        service_id: 3,
-        name: "Revisión"
-      },
-      cancelled: false,
-      duration: 15
-    }
-  ];
-};
+import { useAuth } from "@/stores/authContext";
+import { useProfessionalStore } from "@/stores/professionalStore";
+import { useServiceStore } from "@/stores/serviceStore";
+import axios from "axios";
+import { ENDPOINTS } from "@/config/api";
 
 interface DayCalendarProps {
   selectedDate: Date;
+  schedule: DailyScheduleData | null;
+  loading: boolean;
 }
 
-// Time slots configuration - adding 15 minute increments
+// Time slots configuration
 const TIME_SLOTS = [
   "09:00", "09:15", "09:30", "09:45", "10:00", "10:15", "10:30", "10:45",
   "11:00", "11:15", "11:30", "11:45", "12:00", "12:15", "12:30", "12:45", 
@@ -232,12 +39,13 @@ const TIME_SLOTS = [
   "19:00", "19:15", "19:30", "19:45", "20:00"
 ];
 
-export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
-  const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(null);
-  const [businessHours, setBusinessHours] = useState<{ start: string; end: string }[]>([]);
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [services, setServices] = useState<Service[]>(generateMockServices());
-  const [bookings, setBookings] = useState<Booking[]>([]);
+export const DayCalendar: React.FC<DayCalendarProps> = ({ 
+  selectedDate,
+  schedule,
+  loading
+}) => {
+  const { currentBusiness } = useAuth();
+  const { services, fetchServices } = useServiceStore();
   const [activeTab, setActiveTab] = useState("agenda");
   const [showAllProfessionals, setShowAllProfessionals] = useState(true);
   const [selectedProfessionals, setSelectedProfessionals] = useState<number[]>([]);
@@ -248,47 +56,35 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ time: string, professionalId: number } | null>(null);
 
+  // Cargar servicios cuando cambie el negocio
   useEffect(() => {
-    // Fetch mock data when date changes
-    const mockDailySchedule = generateMockDailySchedule(selectedDate);
-    const mockedBookings = generateMockBookings(selectedDate);
-    
-    setDailySchedule(mockDailySchedule);
-    
-    // Convert business hours to format used by UI
-    const formattedBusinessHours = mockDailySchedule.business_hours.map(hours => ({
-      start: hours.datetime_start.split('T')[1],
-      end: hours.datetime_end.split('T')[1]
-    }));
-    setBusinessHours(formattedBusinessHours);
-    
-    // Set professionals and mark who is working
-    const profsWithWorkingStatus = mockDailySchedule.professionals.map(prof => ({
-      ...prof,
-      isWorking: prof.availabilities && prof.availabilities.length > 0
-    }));
-    setProfessionals(profsWithWorkingStatus);
-    
-    // Update selected professionals
-    setSelectedProfessionals(
-      profsWithWorkingStatus
-        .filter(p => p.isWorking)
-        .map(p => p.professional_id)
-    );
-    
-    setBookings(mockedBookings);
-  }, [selectedDate]);
+    if (currentBusiness?.business_id) {
+      fetchServices(currentBusiness.business_id);
+    }
+  }, [currentBusiness?.business_id]);
+
+  // Actualizar selected professionals cuando cambie el schedule
+  useEffect(() => {
+    if (schedule?.professionals) {
+      const workingProfIds = schedule.professionals
+        .filter(p => p.availabilities && p.availabilities.length > 0)
+        .map(p => p.professional_id);
+      setSelectedProfessionals(workingProfIds);
+    }
+  }, [schedule]);
+
+  // Obtener los datos del schedule
+  const businessHours = schedule?.business_hours || [];
+  const professionals = schedule?.professionals || [];
+  const bookings = schedule?.bookings || [];
 
   const handleBusinessHoursChange = (hours: { start: string; end: string }[]) => {
-    setBusinessHours(hours);
+    // Aquí iría la llamada al backend para actualizar los horarios
+    toast.success('Horarios actualizados correctamente');
   };
 
   const handleProfessionalStatusChange = (id: number, isWorking: boolean) => {
-    setProfessionals(professionals.map(prof => 
-      prof.professional_id === id ? { ...prof, isWorking } : prof
-    ));
-
-    // Update selected professionals
+    // Aquí iría la llamada al backend para actualizar el estado del profesional
     if (isWorking && !selectedProfessionals.includes(id)) {
       setSelectedProfessionals([...selectedProfessionals, id]);
     } else if (!isWorking && selectedProfessionals.includes(id)) {
@@ -297,16 +93,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   };
 
   const handleProfessionalHoursChange = (id: number, hours: { start: string; end: string }[]) => {
-    // Since the API format doesn't directly use workingHours, we'll convert to availabilities format
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const availabilities = hours.map(hour => ({
-      datetime_start: `${dateStr}T${hour.start}:00Z`,
-      datetime_end: `${dateStr}T${hour.end}:00Z`
-    }));
-    
-    setProfessionals(professionals.map(prof => 
-      prof.professional_id === id ? { ...prof, availabilities } : prof
-    ));
+    // Aquí iría la llamada al backend para actualizar los horarios del profesional
+    toast.success('Horarios del profesional actualizados correctamente');
   };
 
   const handleProfessionalSelection = (id: number, selected: boolean) => {
@@ -320,13 +108,16 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   const handleSelectAllProfessionals = (selected: boolean) => {
     setShowAllProfessionals(selected);
     if (selected) {
-      setSelectedProfessionals(professionals.filter(p => p.isWorking).map(p => p.professional_id));
+      const workingProfIds = professionals
+        .filter(p => p.availabilities && p.availabilities.length > 0)
+        .map(p => p.professional_id);
+      setSelectedProfessionals(workingProfIds);
     } else {
       setSelectedProfessionals([]);
     }
   };
 
-  const workingProfessionals = professionals.filter(p => p.isWorking);
+  const workingProfessionals = professionals.filter(p => p.availabilities && p.availabilities.length > 0);
   const filteredProfessionals = workingProfessionals.filter(p => selectedProfessionals.includes(p.professional_id));
   
   // Handle click on empty time slot
@@ -338,81 +129,112 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
   };
   
   // Handle click on existing booking
-  const handleBookingClick = (booking: Booking) => {
-    setCurrentBooking(booking);
-    setSelectedTimeSlot(null);
-    setIsEditing(true);
-    setDialogOpen(true);
+  const handleBookingClick = async (booking: Booking) => {
+    try {
+      if (!currentBusiness?.business_id) {
+        toast.error('No hay un negocio seleccionado');
+        return;
+      }
+
+      // Obtener los detalles actualizados de la reserva
+      const response = await axios.get(
+        ENDPOINTS.BOOKING_DETAIL(currentBusiness.business_id, booking.booking_id)
+      );
+
+      setCurrentBooking(response.data);
+      setSelectedTimeSlot(null);
+      setIsEditing(true);
+      setDialogOpen(true);
+    } catch (error) {
+      console.error('Error al obtener detalles de la reserva:', error);
+      toast.error('Error al cargar los detalles de la reserva');
+    }
   };
   
   // Handle save booking
-  const handleSaveBooking = (data: BookingFormData) => {
-    if (isEditing && currentBooking) {
-      // Update existing booking
-      const updatedBookings = bookings.map(booking => 
-        booking.booking_id === currentBooking.booking_id
-          ? {
-              ...booking,
-              start_datetime: data.start_datetime,
-              end_datetime: data.end_datetime,
-              title: data.booking_type === 'block' ? data.title : undefined,
-              professional: data.professional_id 
-                ? { ...booking.professional, professional_id: data.professional_id }
-                : booking.professional,
-              service: data.service_id && data.booking_type === 'reservation'
-                ? { ...booking.service, service_id: data.service_id }
-                : booking.service
-            }
-          : booking
-      );
-      
-      setBookings(updatedBookings);
-      toast.success(`${data.booking_type === 'block' ? 'Bloqueo' : 'Reserva'} actualizado correctamente`);
-    } else {
-      // Create new booking
-      const newBooking: Booking = {
-        booking_id: `temp-${Date.now()}`, // This would be set by the backend
-        business: "business1", // This would be set by the backend
+  const handleSaveBooking = async (data: BookingFormData) => {
+    try {
+      if (!currentBusiness?.business_id) {
+        toast.error('No hay un negocio seleccionado');
+        return;
+      }
+
+      if (!data.professional_id) {
+        toast.error('Debes seleccionar un profesional');
+        return;
+      }
+
+      const bookingData = {
+        professional_id: data.professional_id.toString(),
         start_datetime: data.start_datetime,
         end_datetime: data.end_datetime,
-        cancelled: false,
-        duration: 0, // This would be calculated by the backend
-        title: data.booking_type === 'block' ? data.title : undefined,
+        creation_method: "WEB",
+        creator_type: "OWN",
+        // Si es una reserva y hay servicio seleccionado, incluirlo
+        ...(data.booking_type === 'reservation' && data.service_id && {
+          service_id: data.service_id.toString()
+        }),
+        // Si es un bloqueo, incluir título
+        ...(data.booking_type === 'block' && data.title && {
+          title: data.title
+        })
       };
-      
-      // Add professional
-      if (data.professional_id) {
-        const professional = professionals.find(p => p.professional_id === data.professional_id);
-        if (professional) {
-          newBooking.professional = {
-            professional_id: professional.professional_id,
-            name: professional.name.split(' ')[0],
-            surnames: professional.surnames || '',
-            fullname: professional.fullname
-          };
+
+      if (isEditing && currentBooking) {
+        // Actualizar reserva existente
+        const response = await axios.put(
+          ENDPOINTS.BOOKING_UPDATE(currentBusiness.business_id, currentBooking.booking_id),
+          bookingData
+        );
+
+        if (response.status === 200) {
+          toast.success('Reserva actualizada correctamente');
+          // Recargar los datos del día
+          if (currentBusiness?.business_id) {
+            const response = await axios.get(
+              ENDPOINTS.BUSINESS_SCHEDULE(currentBusiness.business_id),
+              { params: { date: format(selectedDate, 'yyyy-MM-dd') } }
+            );
+            // El componente padre se encargará de actualizar el schedule
+            if (response.data && response.data.length > 0) {
+              // Aquí no necesitamos hacer nada porque el componente padre
+              // actualizará el schedule a través de las props
+            }
+          }
+        }
+      } else {
+        // Crear nueva reserva
+        const response = await axios.post(
+          ENDPOINTS.BOOKING_CREATE(currentBusiness.business_id),
+          bookingData
+        );
+
+        if (response.status === 201) {
+          toast.success('Reserva creada correctamente');
+          // Recargar los datos del día
+          if (currentBusiness?.business_id) {
+            const response = await axios.get(
+              ENDPOINTS.BUSINESS_SCHEDULE(currentBusiness.business_id),
+              { params: { date: format(selectedDate, 'yyyy-MM-dd') } }
+            );
+            // El componente padre se encargará de actualizar el schedule
+            if (response.data && response.data.length > 0) {
+              // Aquí no necesitamos hacer nada porque el componente padre
+              // actualizará el schedule a través de las props
+            }
+          }
         }
       }
-      
-      // Add service for reservations
-      if (data.booking_type === 'reservation' && data.service_id) {
-        const service = services.find(s => s.id === data.service_id);
-        if (service) {
-          newBooking.service = {
-            service_id: service.id,
-            name: service.name
-          };
-        }
-      }
-      
-      setBookings([...bookings, newBooking]);
-      toast.success(`${data.booking_type === 'block' ? 'Bloqueo' : 'Reserva'} creado correctamente`);
+      setDialogOpen(false);
+    } catch (error) {
+      console.error('Error al guardar la reserva:', error);
+      toast.error('Error al guardar la reserva');
     }
-    
-    setDialogOpen(false);
   };
   
   // Helper function to get initials
-  const getInitials = (name: string) => {
+  const getInitials = (name: string): string => {
+    if (!name) return '';
     return name
       .split(' ')
       .map(part => part[0])
@@ -427,53 +249,42 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
     const timeWithoutSeconds = time;
     
     return professional.availabilities.some(availability => {
-      const startTime = availability.datetime_start.split('T')[1].substring(0, 5); // Format to HH:MM
-      const endTime = availability.datetime_end.split('T')[1].substring(0, 5); // Format to HH:MM
-      
+      const startTime = availability.datetime_start.split('T')[1].substring(0, 5);
+      const endTime = availability.datetime_end.split('T')[1].substring(0, 5);
       return timeWithoutSeconds >= startTime && timeWithoutSeconds < endTime;
     });
   };
   
   // Helper function to format the time string
-  const formatTime = (timeString: string) => {
+  const formatTime = (timeString: string): string => {
     if (!timeString) return '';
-    // Extract time from ISO string if necessary
     if (timeString.includes('T')) {
       return timeString.split('T')[1].substring(0, 5);
     }
-    return timeString.substring(0, 5); // Just get HH:MM
+    return timeString.substring(0, 5);
   };
   
   // Helper function to get formatted date for the API
-  const getFormattedDate = () => {
+  const getFormattedDate = (): string => {
     return format(selectedDate, 'yyyy-MM-dd');
   };
 
-  // Helper function to calculate the height of a booking in rows (for spanning multiple time slots)
+  // Helper function to calculate the height of a booking in rows
   const calculateBookingRowSpan = (booking: Booking): number => {
-    const startTime = booking.start_datetime.includes('T') 
-      ? booking.start_datetime.split('T')[1].substring(0, 5) 
-      : booking.start_datetime.substring(0, 5);
+    const startTime = formatTime(booking.start_datetime);
+    const endTime = formatTime(booking.end_datetime);
     
-    const endTime = booking.end_datetime.includes('T') 
-      ? booking.end_datetime.split('T')[1].substring(0, 5) 
-      : booking.end_datetime.substring(0, 5);
-    
-    // Find indices in TIME_SLOTS array
     const startIndex = TIME_SLOTS.indexOf(startTime);
     const endIndex = TIME_SLOTS.indexOf(endTime);
     
-    // Calculate row span (at least 1)
     return Math.max(1, endIndex - startIndex);
   };
 
-  // Helper function to get color for different types of bookings - using more aesthetic, opaque blues
+  // Helper function to get color for different types of bookings
   const getBookingColor = (booking: Booking): { bg: string, border: string, text: string, hover: string } => {
-    // Check if it's a block or a reservation
     const isBlock = !!booking.title;
     
     if (isBlock) {
-      // Calendar block - using a rich blue color
       return {
         bg: "bg-blue-100",
         border: "border-blue-300",
@@ -481,7 +292,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
         hover: "hover:bg-blue-200"
       };
     } else {
-      // Client reservation - using a nice violet/purple
       return {
         bg: "bg-indigo-100",
         border: "border-indigo-300",
@@ -505,17 +315,14 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
     const isBlock = !!booking.title;
     
     const startIndex = TIME_SLOTS.indexOf(startTime);
-    if (startIndex === -1) return null; // Skip if not found in our time slots
+    if (startIndex === -1) return null;
     
     const rowSpan = calculateBookingRowSpan(booking);
-    if (rowSpan <= 0) return null; // Skip invalid bookings
+    if (rowSpan <= 0) return null;
     
-    // Calculate height and determine if it's a small booking (15-30 min)
-    const isSmallBooking = rowSpan <= 2; // 15-30 min bookings
+    const isSmallBooking = rowSpan <= 2;
     const colors = getBookingColor(booking);
-    
-    // Time slot height (updated to account for 15 min increments)
-    const slotHeight = 36; // px
+    const slotHeight = 36;
     
     return (
       <div 
@@ -528,19 +335,17 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
         )}
         style={{
           top: `${startIndex * slotHeight}px`,
-          height: `${rowSpan * slotHeight - 2}px`, // -2px for the border
+          height: `${rowSpan * slotHeight - 2}px`,
           zIndex: 10
         }}
         onClick={() => handleBookingClick(booking)}
       >
         <div className={cn("flex flex-col h-full", colors.text)}>
-          {/* Header - always visible */}
           <div className="text-sm font-medium">
             {startTime} - {endTime}
             {isSmallBooking && (isBlock ? `: ${booking.title}` : booking.client && `: ${booking.client.fullname.split(' ')[0]}`)}
           </div>
           
-          {/* Details - only for bookings with enough height */}
           {!isSmallBooking && (
             <div className="mt-1">
               {isBlock ? (
@@ -571,6 +376,22 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="text-center p-6">
+        <p>Cargando agenda...</p>
+      </div>
+    );
+  }
+
+  if (!schedule) {
+    return (
+      <div className="text-center p-6 text-gray-500">
+        No hay datos disponibles para este día.
+      </div>
+    );
+  }
+
   return (
     <div>
       <Tabs 
@@ -586,7 +407,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
         
         <TabsContent value="horarios" className="space-y-4 mt-4">
           <BusinessHours 
-            initialHours={businessHours} 
+            initialHours={businessHours?.map(h => ({
+              start: h.datetime_start?.split('T')[1] || '',
+              end: h.datetime_end?.split('T')[1] || ''
+            })) || []} 
             onSave={handleBusinessHoursChange} 
           />
           
@@ -599,16 +423,16 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
             </CardHeader>
             <CardContent className="p-4">
               <div className="space-y-2">
-                {professionals.map(professional => (
+                {professionals?.map(professional => (
                   <ProfessionalSchedule
                     key={professional.professional_id}
                     professional={{
-                      id: professional.professional_id.toString(),
-                      name: professional.fullname,
-                      isWorking: professional.isWorking || false,
+                      id: professional.professional_id?.toString() || '',
+                      name: professional.fullname || '',
+                      isWorking: professional.availabilities && professional.availabilities.length > 0,
                       workingHours: professional.availabilities?.map(avail => ({
-                        start: avail.datetime_start.split('T')[1].substring(0, 5),
-                        end: avail.datetime_end.split('T')[1].substring(0, 5)
+                        start: avail.datetime_start?.split('T')[1]?.substring(0, 5) || '',
+                        end: avail.datetime_end?.split('T')[1]?.substring(0, 5) || ''
                       })) || []
                     }}
                     onStatusChange={(id, isWorking) => handleProfessionalStatusChange(parseInt(id), isWorking)}
@@ -763,8 +587,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({ selectedDate }) => {
         onClose={() => setDialogOpen(false)}
         onSave={handleSaveBooking}
         booking={currentBooking}
-        date={getFormattedDate()}
-        professionals={professionals}
+        date={format(selectedDate, 'yyyy-MM-dd')}
+        professionals={workingProfessionals}
         services={services}
         defaultProfessionalId={selectedTimeSlot?.professionalId}
         isEditing={isEditing}

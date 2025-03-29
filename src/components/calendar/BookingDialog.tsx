@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { format, parseISO, addMinutes } from "date-fns";
 import { es } from "date-fns/locale";
@@ -50,23 +49,23 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
   isEditing,
 }) => {
   const [bookingType, setBookingType] = useState<BookingType>("reservation");
-  const [professionalId, setProfessionalId] = useState<number | undefined>(undefined);
-  const [serviceId, setServiceId] = useState<number | undefined>(undefined);
+  const [professionalId, setProfessionalId] = useState<string | undefined>(undefined);
+  const [serviceId, setServiceId] = useState<string | undefined>(undefined);
   const [clientId, setClientId] = useState<number | undefined>(undefined);
   const [startTime, setStartTime] = useState<string>("09:00");
   const [endTime, setEndTime] = useState<string>("09:30");
   const [title, setTitle] = useState<string>("");
 
   // Filter working professionals
-  const workingProfessionals = professionals.filter(p => p.isWorking);
+  const workingProfessionals = professionals?.filter(p => p.availabilities && p.availabilities.length > 0) || [];
 
   useEffect(() => {
     if (isOpen) {
       if (booking) {
         // Edit mode - populate with existing booking data
         setBookingType(booking.title ? "block" : "reservation");
-        setProfessionalId(booking.professional?.professional_id);
-        setServiceId(booking.service?.service_id);
+        setProfessionalId(booking.professional?.professional_id?.toString());
+        setServiceId(booking.service?.service_id?.toString());
         setClientId(booking.client?.client_id);
         
         // Extract times from datetime strings
@@ -85,13 +84,13 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
       } else {
         // New booking mode
         setBookingType("reservation");
-        setProfessionalId(defaultProfessionalId);
+        setProfessionalId(defaultProfessionalId?.toString());
         setServiceId(undefined);
         setClientId(undefined);
         setTitle("");
         
         // Default to selected time slot or 9:00
-        setStartTime(defaultProfessionalId ? "09:00" : "09:00");
+        setStartTime("09:00");
         
         // Default end time is start time + 30 minutes
         const startDate = new Date(`${date}T${startTime}`);
@@ -106,13 +105,13 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
     
     const formData: BookingFormData = {
       booking_type: bookingType,
-      professional_id: professionalId,
+      professional_id: professionalId ? parseInt(professionalId) : undefined,
       start_datetime: `${date}T${startTime}:00Z`,
       end_datetime: `${date}T${endTime}:00Z`,
     };
     
     if (bookingType === "reservation") {
-      formData.service_id = serviceId;
+      formData.service_id = serviceId ? parseInt(serviceId) : undefined;
       formData.client_id = clientId;
     } else {
       formData.title = title;
@@ -154,17 +153,22 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                 <div className="grid gap-2">
                   <Label htmlFor="professional">Profesional</Label>
                   <Select 
-                    value={professionalId?.toString()} 
-                    onValueChange={(value) => setProfessionalId(parseInt(value))}
+                    value={professionalId || undefined} 
+                    onValueChange={setProfessionalId}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar profesional" />
                     </SelectTrigger>
                     <SelectContent>
                       {workingProfessionals.map((professional) => (
-                        <SelectItem key={professional.professional_id} value={professional.professional_id.toString()}>
-                          {professional.fullname}
-                        </SelectItem>
+                        professional.professional_id && (
+                          <SelectItem 
+                            key={professional.professional_id} 
+                            value={professional.professional_id.toString()}
+                          >
+                            {professional.fullname}
+                          </SelectItem>
+                        )
                       ))}
                     </SelectContent>
                   </Select>
@@ -191,20 +195,24 @@ export const BookingDialog: React.FC<BookingDialogProps> = ({
                 
                 <TabsContent value="reservation" className="space-y-4 mt-0 p-0">
                   <div className="grid gap-2">
-                    <Label htmlFor="service">Servicio</Label>
+                    <Label htmlFor="service">Servicio (opcional)</Label>
                     <Select 
-                      value={serviceId?.toString()} 
-                      onValueChange={(value) => setServiceId(parseInt(value))}
+                      value={serviceId || undefined} 
+                      onValueChange={setServiceId}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar servicio" />
                       </SelectTrigger>
                       <SelectContent>
-                        {services.map((service) => (
-                          <SelectItem key={service.id} value={service.id.toString()}>
-                            {service.name} ({service.duration} min)
-                          </SelectItem>
-                        ))}
+                        {services?.filter(service => service.service_id !== undefined && service.service_id !== null)
+                          .map((service) => (
+                            <SelectItem 
+                              key={service.service_id} 
+                              value={service.service_id.toString()}
+                            >
+                              {service.name} ({service.duration} min)
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>

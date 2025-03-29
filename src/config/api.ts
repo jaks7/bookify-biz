@@ -38,7 +38,11 @@ export const ENDPOINTS = {
   BOOKINGS: (businessId: string) => `${API_BASE_URL}/calendars/${businessId}/bookings/`,
   BOOKING_DETAIL: (businessId: string, bookingId: string) => 
     `${API_BASE_URL}/calendars/${businessId}/bookings/${bookingId}/`,
-  
+  BOOKING_CREATE: (businessId: string) => 
+    `${API_BASE_URL}/calendars/${businessId}/bookings/create/`,
+  BOOKING_UPDATE: (businessId: string, bookingId: string) => 
+    `${API_BASE_URL}/calendars/${businessId}/bookings/${bookingId}/update/`,
+
   SHIFTS: (businessId: string) => `${API_BASE_URL}/calendars/${businessId}/shifts/`,
   SHIFTS_CREATE: (businessId: string) => `${API_BASE_URL}/calendars/${businessId}/shifts/create/`,
   SHIFT_DETAIL: (businessId: string, shiftId: string) => `${API_BASE_URL}/calendars/${businessId}/shifts/${shiftId}/`,

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AppSidebarWrapper } from "@/components/layout/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -36,28 +35,19 @@ import {
 
 // Types for our data model
 interface Professional {
-  id: number;
+  professional_id: string;
   name: string;
-  lastName: string;
-  workingDays: number[]; // 0 = Sunday, 6 = Saturday
-  schedules: {
-    [key: number]: { // Day of week (0-6)
-      start: string; // Time format: "09:00"
-      end: string; // Time format: "17:00"
-    };
-  };
-  professional_id?: number; // Added for compatibility
-  surnames?: string; // Added for compatibility 
-  email?: string; // Added for compatibility
+  surnames: string;
+  email: string;
+  phone: string;
 }
-
-
 
 // Schema for validating professional form
 const professionalSchema = z.object({
   name: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres" }),
-  lastName: z.string().min(2, { message: "El apellido debe tener al menos 2 caracteres" }),
-  workingDays: z.array(z.number()).min(1, { message: "Selecciona al menos un día de trabajo" }),
+  surnames: z.string().min(2, { message: "Los apellidos deben tener al menos 2 caracteres" }),
+  email: z.string().email({ message: "El email debe ser válido" }),
+  phone: z.string().min(9, { message: "El teléfono debe tener al menos 9 dígitos" }),
 });
 
 type ProfessionalFormValues = z.infer<typeof professionalSchema>;
@@ -86,14 +76,13 @@ const Professionals = () => {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingProfessional, setEditingProfessional] = useState<null | Professional>(null);
-  const [scheduleProfessional, setScheduleProfessional] = useState<null | Professional>(null);
-  const [schedules, setSchedules] = useState<Professional['schedules']>({});
   const { toast } = useToast();
   const { isAuthenticated, currentBusiness } = useAuth();
   const navigate = useNavigate();
   const businessId = currentBusiness?.business_id;
 
-  const form = useForm({
+  const form = useForm<ProfessionalFormValues>({
+    resolver: zodResolver(professionalSchema),
     defaultValues: {
       name: "",
       surnames: "",
@@ -105,7 +94,9 @@ const Professionals = () => {
   const fetchProfessionals = async () => {
     if (!businessId) return;
     try {
-      const response = await axios.get<Professional[]>(ENDPOINTS.PROFESSIONALS(businessId));
+      const response = await axios.get<Professional[]>(
+        `http://127.0.0.1:8000/business/${businessId}/professionals/`
+      );
       setProfessionals(response.data || []);
     } catch (error) {
       console.error('Error fetching professionals:', error);
@@ -132,12 +123,13 @@ const Professionals = () => {
     fetchProfessionals();
   }, [isAuthenticated, businessId, navigate]);
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: ProfessionalFormValues) => {
     if (!businessId) return;
     try {
       if (editingProfessional) {
+        // Actualizar profesional existente
         await axios.put(
-          ENDPOINTS.PROFESSIONAL_UPDATE(businessId, editingProfessional.professional_id),
+          `http://127.0.0.1:8000/business/${businessId}/professionals/${editingProfessional.professional_id}/update/`,
           data
         );
         toast({
@@ -145,7 +137,11 @@ const Professionals = () => {
           description: `${data.name} ${data.surnames} ha sido actualizado correctamente.`,
         });
       } else {
-        await axios.post(ENDPOINTS.PROFESSIONALS_CREATE(businessId), data);
+        // Crear nuevo profesional
+        await axios.post(
+          `http://127.0.0.1:8000/business/${businessId}/professionals/create/`,
+          data
+        );
         toast({
           title: "Profesional creado",
           description: `${data.name} ${data.surnames} ha sido añadido correctamente.`,
@@ -178,9 +174,9 @@ const Professionals = () => {
     setEditingProfessional(professional);
     form.reset({
       name: professional.name,
-      surnames: professional.lastName,
-      email: "",
-      phone: "",
+      surnames: professional.surnames,
+      email: professional.email,
+      phone: professional.phone,
     });
     setIsFormDialogOpen(true);
   };
@@ -194,7 +190,7 @@ const Professionals = () => {
     if (!businessId || !editingProfessional) return;
     try {
       await axios.delete(
-        ENDPOINTS.PROFESSIONAL_DELETE(businessId, editingProfessional.id.toString())
+        `http://127.0.0.1:8000/business/${businessId}/professionals/${editingProfessional.professional_id}/delete/`
       );
       toast({
         title: "Profesional eliminado",
@@ -211,34 +207,6 @@ const Professionals = () => {
       setIsDeleteDialogOpen(false);
       setEditingProfessional(null);
     }
-  };
-
-  const openScheduleDialog = (professional: Professional) => {
-    setScheduleProfessional(professional);
-    setSchedules({ ...professional.schedules });
-  };
-
-  const handleScheduleChange = (day: number, field: 'start' | 'end', time: string) => {
-    setSchedules(prev => {
-      const newSchedules = { ...prev };
-      if (!newSchedules[day]) {
-        newSchedules[day] = { start: "09:00", end: "17:00" };
-      }
-      newSchedules[day][field] = time;
-      return newSchedules;
-    });
-  };
-
-  const saveSchedules = () => {
-    if (!scheduleProfessional) return;
-    
-    // Update professional schedules
-    fetchProfessionals();
-    
-    toast({
-      title: "Horarios actualizados",
-      description: `Los horarios de ${scheduleProfessional.name} ${scheduleProfessional.lastName} han sido actualizados.`,
-    });
   };
 
   return (
@@ -266,7 +234,7 @@ const Professionals = () => {
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Apellidos</TableHead>
-                    <TableHead>Días laborables</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -329,7 +297,7 @@ const Professionals = () => {
                 {editingProfessional ? "Editar Profesional" : "Nuevo Profesional"}
               </DialogTitle>
               <DialogDescription>
-                Introduce los datos del profesional y selecciona sus días de trabajo.
+                Introduce los datos del profesional. Todos los campos son obligatorios.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -354,7 +322,7 @@ const Professionals = () => {
                     <FormItem>
                       <FormLabel>Apellidos</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: García" {...field} />
+                        <Input placeholder="Ej: García López" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -367,7 +335,7 @@ const Professionals = () => {
                     <FormItem>
                       <FormLabel>Correo electrónico</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: ana@example.com" {...field} />
+                        <Input type="email" placeholder="ana.garcia@example.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -380,92 +348,19 @@ const Professionals = () => {
                     <FormItem>
                       <FormLabel>Teléfono</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: 555-1234-567" {...field} />
+                        <Input placeholder="Ej: 666123456" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">Guardar</Button>
+                  <Button type="submit">
+                    {editingProfessional ? "Guardar cambios" : "Crear profesional"}
+                  </Button>
                 </DialogFooter>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Schedule Management Dialog */}
-        <Dialog open={scheduleProfessional !== null} onOpenChange={() => setScheduleProfessional(null)}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>
-                Horarios de {scheduleProfessional?.name} {scheduleProfessional?.lastName}
-              </DialogTitle>
-              <DialogDescription>
-                Define los horarios específicos para cada día de trabajo.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              {scheduleProfessional?.workingDays.map(day => (
-                <Card key={day}>
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-lg">{dayNames[day]}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <FormLabel>Hora de inicio</FormLabel>
-                        <Select 
-                          value={schedules[day]?.start || "09:00"}
-                          onValueChange={(value) => handleScheduleChange(day, 'start', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Hora de inicio" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {timeSlots.map(time => (
-                              <SelectItem key={`start-${time}`} value={time}>
-                                {time}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <FormLabel>Hora de fin</FormLabel>
-                        <Select 
-                          value={schedules[day]?.end || "17:00"}
-                          onValueChange={(value) => handleScheduleChange(day, 'end', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Hora de fin" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {timeSlots.map(time => (
-                              <SelectItem key={`end-${time}`} value={time}>
-                                {time}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-
-              {(!scheduleProfessional?.workingDays.length) && (
-                <div className="text-center p-6 text-muted-foreground">
-                  Este profesional no tiene días de trabajo asignados.
-                  Edita el profesional primero para asignar días de trabajo.
-                </div>
-              )}
-            </div>
-            
-            <DialogFooter>
-              <Button onClick={saveSchedules}>Guardar Horarios</Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 
