@@ -63,7 +63,7 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left column with location */}
+        {/* Left column with contact info */}
         <div className="md:col-span-1">
           <Card className="h-full">
             <CardHeader className="pb-2">
@@ -74,17 +74,6 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm">{business.address}</p>
-              <div className="h-[200px] bg-gray-100 relative rounded-md overflow-hidden">
-                <iframe
-                  title="Mapa de ubicación"
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  src={`https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q=${encodedAddress}`}
-                  allowFullScreen
-                ></iframe>
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-200/30"></div>
-              </div>
               <a 
                 href={googleMapsUrl} 
                 target="_blank" 
@@ -98,7 +87,7 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
           </Card>
         </div>
 
-        {/* Center column with contact info */}
+        {/* Center column with hours */}
         <div className="md:col-span-1">
           <Card className="h-full">
             <CardHeader className="pb-2">
@@ -133,21 +122,48 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
           </Card>
         </div>
 
-        {/* Right column with services and booking button */}
+        {/* Right column with map */}
         <div className="md:col-span-1">
           <Card className="h-full">
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Reserva tu cita
+                <MapPin className="h-5 w-5 text-primary" />
+                Mapa
               </CardTitle>
-              <CardDescription>
-                Elige el servicio que necesitas
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2">
+              <div className="h-[200px] bg-gray-100 relative rounded-md overflow-hidden">
+                <iframe
+                  title="Mapa de ubicación"
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  src={`https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q=${encodedAddress}`}
+                  allowFullScreen
+                ></iframe>
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-200/30"></div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Services section - now full width below the other cards */}
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              Servicios disponibles
+            </CardTitle>
+            <CardDescription>
+              Elige el servicio que necesitas
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {business.services.map((service, index) => (
-                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-md transition-colors hover:bg-gray-100">
                   <div>
                     <div className="font-medium">{service.name}</div>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
@@ -158,16 +174,16 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
                   <div className="text-primary font-bold text-lg">{service.price}€</div>
                 </div>
               ))}
-            </CardContent>
-            <CardFooter>
-              <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
-                <Link to={reservationPath}>
-                  <Calendar className="mr-2 h-4 w-4" /> Reservar ahora
-                </Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-center pt-4">
+            <Button asChild className="w-full md:w-1/2 lg:w-1/3 bg-blue-600 hover:bg-blue-700 text-base py-6">
+              <Link to={reservationPath}>
+                <Calendar className="mr-2 h-5 w-5" /> Reservar ahora
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
