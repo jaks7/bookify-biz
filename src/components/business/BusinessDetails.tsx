@@ -63,26 +63,25 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left column with contact info */}
+        {/* Left column with call to action */}
         <div className="md:col-span-1">
-          <Card className="h-full">
+          <Card className="h-full bg-gradient-to-br from-blue-50 to-white border-blue-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                Ubicación
+                <Calendar className="h-5 w-5 text-primary" />
+                ¡Reserva tu cita hoy!
               </CardTitle>
+              <CardDescription>
+                Garantiza tu espacio en nuestro horario
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-sm">{business.address}</p>
-              <a 
-                href={googleMapsUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary text-sm flex items-center hover:underline"
-              >
-                Abrir en Google Maps
-                <ExternalLink className="ml-1 h-3 w-3" />
-              </a>
+            <CardContent className="space-y-4">
+              <p className="text-sm">Reservar es rápido y sencillo. Selecciona el servicio que necesitas y encuentra un horario que se adapte a tu agenda.</p>
+              <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-base py-6 mt-4 shadow-md transition-all hover:shadow-lg">
+                <Link to={reservationPath}>
+                  <Calendar className="mr-2 h-5 w-5" /> Reservar ahora
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -122,16 +121,17 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
           </Card>
         </div>
 
-        {/* Right column with map */}
+        {/* Right column with location and map */}
         <div className="md:col-span-1">
           <Card className="h-full">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-primary" />
-                Mapa
+                Ubicación
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-4">
+              <p className="text-sm font-medium">{business.address}</p>
               <div className="h-[200px] bg-gray-100 relative rounded-md overflow-hidden">
                 <iframe
                   title="Mapa de ubicación"
@@ -143,6 +143,15 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
                 ></iframe>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-200/30"></div>
               </div>
+              <a 
+                href={googleMapsUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary text-sm flex items-center hover:underline"
+              >
+                Abrir en Google Maps
+                <ExternalLink className="ml-1 h-3 w-3" />
+              </a>
             </CardContent>
           </Card>
         </div>
