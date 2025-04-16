@@ -27,6 +27,7 @@ import Clients from './pages/Clients';
 import BusinessConfig from './pages/BusinessConfig';
 import ClientReservation from './pages/ClientReservation';
 import Turnos from './pages/Turnos';
+import BusinessDetailsPage from './pages/BusinessDetailsPage';
 
 // Demo pages
 import DemoAgenda from './pages/demo/Agenda';
@@ -40,6 +41,7 @@ import DemoClients from './pages/demo/Clients';
 import DemoProfile from './pages/demo/Profile';
 import DemoBusinessConfig from './pages/demo/BusinessConfig';
 import DemoTurnos from './pages/demo/Turnos';
+import DemoBusinessDetails from './pages/demo/BusinessDetails';
 
 const queryClient = new QueryClient();
 
@@ -57,6 +59,7 @@ const App = () => (
               <Route path="/register" element={<Register />} />
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/calendar" element={<CalendarView />} />
+              <Route path="/business/:businessId" element={<BusinessDetailsPage />} />
               <Route path="/reservation" element={<ClientReservation />} />
               <Route path="/turnos" element={<Turnos />} />
               <Route path="/inteligenciaNegocio" element={<BusinessIntelligence />} />
@@ -87,6 +90,7 @@ const App = () => (
               <Route path="/demo/services" element={<DemoServices />} />
               <Route path="/demo/clients" element={<DemoClients />} />
               <Route path="/demo/mi_perfil" element={<DemoProfile />} />
+              <Route path="/demo/business" element={<DemoBusinessDetails />} />
               
               {/* Redirect outdated component routes to the new pages */}
               <Route path="/components/Login" element={<Navigate to="/login" replace />} />

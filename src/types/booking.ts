@@ -1,3 +1,4 @@
+
 export type BookingStatus = "confirmed" | "cancelled" | "pending";
 export type BookingType = "reservation" | "block";
 
@@ -16,6 +17,7 @@ export interface Booking {
     id?: string | number;
     name: string;
     duration?: number;
+    service_id?: number;
   };
   service_name?: string;
   professional?: {
@@ -43,4 +45,22 @@ export interface BookingFormData {
   title?: string;
   start_datetime: string;
   end_datetime: string;
+}
+
+export interface BusinessDetail {
+  name: string;
+  description: string | null;
+  address: string;
+  phone: string | null;
+  business_hours: {
+    [key: string]: {
+      start: string;
+      end: string;
+    }[];
+  };
+  services: {
+    name: string;
+    duration: number;
+    price: number;
+  }[];
 }
