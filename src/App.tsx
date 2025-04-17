@@ -28,6 +28,7 @@ import BusinessConfig from './pages/BusinessConfig';
 import ClientReservation from './pages/ClientReservation';
 import Turnos from './pages/Turnos';
 import BusinessDetailsPage from './pages/BusinessDetailsPage';
+import ClientPortalBusiness from './pages/client_portal/business';
 
 // Demo pages
 import DemoAgenda from './pages/demo/Agenda';
@@ -68,6 +69,10 @@ const App = () => (
               <Route path="/afiliados" element={<Affiliates />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/mi_perfil" element={<Profile />} />
+              
+              {/* Client portal routes */}
+              <Route path="/client_portal/business/:businessId" element={<ClientPortalBusiness />} />
+              <Route path="/client_portal/business" element={<ClientPortalBusiness />} />
               
               {/* Management routes */}
               <Route path="/dashboard" element={<Dashboard />} />
