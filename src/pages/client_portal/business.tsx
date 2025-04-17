@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BusinessDetails } from "@/components/business/BusinessDetails";
@@ -104,13 +105,16 @@ const BusinessPage = () => {
       service_id: formData.service_id,
       professional_id: formData.professional_id,
       phone: formData.phone || "",
-      name: formData.fullname || "",
-      email: formData.email || "",
+      name: formData.fullname || undefined,
+      email: formData.email || undefined,
     };
 
     setLastBooking(bookingRequest);
     
+    // Close the reservation dialog
     setIsReservationOpen(false);
+    
+    // Open the confirmation dialog immediately
     setShowConfirmation(true);
     
     toast.success("Reserva creada con éxito");
@@ -158,7 +162,16 @@ const BusinessPage = () => {
           } 
         />
         
-        <Dialog open={isReservationOpen} onOpenChange={setIsReservationOpen}>
+        {/* Reservation Dialog */}
+        <Dialog 
+          open={isReservationOpen} 
+          onOpenChange={(open) => {
+            setIsReservationOpen(open);
+            if (!open) {
+              // Reset any form state if needed when dialog is closed
+            }
+          }}
+        >
           <DialogContent className="sm:max-w-[100%] md:max-w-[90%] lg:max-w-[80%] max-h-[90vh] overflow-y-auto">
             {isReservationOpen && (
               <ClientReservation 
@@ -171,6 +184,7 @@ const BusinessPage = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Confirmation Dialog - Shown separately after the reservation is completed */}
         <Dialog open={showConfirmation} onOpenChange={handleCloseConfirmation}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
@@ -200,7 +214,7 @@ const BusinessPage = () => {
                       }
                     </p>
                   )}
-                  <p><span className="font-medium">Cliente:</span> {lastBooking.name}</p>
+                  {lastBooking.name && <p><span className="font-medium">Cliente:</span> {lastBooking.name}</p>}
                 </div>
               )}
             </div>

@@ -1,3 +1,4 @@
+
 export interface BusinessDetail {
   name: string;
   description: string | null;
@@ -22,6 +23,6 @@ export interface BookingRequest {
   service_id: number;
   professional_id: number;
   phone: string;
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
 }
