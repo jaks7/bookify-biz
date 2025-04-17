@@ -65,8 +65,8 @@ const BusinessPage = () => {
             "7": []
           },
           services: [
-            { name: "Consulta general", duration: 30, price: 15.0 },
-            { name: "Alineado cervical", duration: 60, price: 100.0 }
+            { id: 1, name: "Consulta general", duration: 30, price: 15.0 },
+            { id: 2, name: "Alineado cervical", duration: 60, price: 100.0 }
           ]
         });
       } finally {
@@ -109,19 +109,56 @@ const BusinessPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-10">
       <div className="container mx-auto">
-        {/* Renderizar BusinessDetails pero reemplazar la acción del botón */}
-        <BusinessDetails 
-          business={business} 
-          reservationButton={
+        {/* Renderizar los detalles del negocio */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-4">{business.name}</h1>
+          {business.description && (
+            <p className="text-gray-600 mb-4">{business.description}</p>
+          )}
+          
+          {business.address && (
+            <div className="mb-2">
+              <span className="font-medium">Dirección:</span> {business.address}
+            </div>
+          )}
+          
+          {business.phone && (
+            <div className="mb-4">
+              <span className="font-medium">Teléfono:</span> {business.phone}
+            </div>
+          )}
+          
+          <div className="mt-6">
             <Button 
-              className="w-full" 
+              className="w-full sm:w-auto" 
               size="lg" 
               onClick={handleOpenReservation}
             >
               Reservar cita
             </Button>
-          } 
-        />
+          </div>
+        </div>
+        
+        {/* Detalles de servicios */}
+        {business.services && business.services.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">Servicios</h2>
+            <div className="space-y-4">
+              {business.services.map((service) => (
+                <div 
+                  key={service.id} 
+                  className="flex justify-between items-center p-3 border-b last:border-0"
+                >
+                  <div>
+                    <h3 className="font-medium">{service.name}</h3>
+                    <p className="text-sm text-gray-500">{service.duration} min</p>
+                  </div>
+                  <div className="font-bold">{service.price}€</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         {/* Diálogo de reserva */}
         <ReservationDialog 

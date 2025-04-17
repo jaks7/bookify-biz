@@ -288,7 +288,7 @@ export const ReservationDialog = ({ isOpen, onClose, business }: ReservationDial
     form.reset();
   };
 
-  // Función para colorear fechas en el calendario
+  // Función para colorear fechas en el calendario según disponibilidad
   const getDayClass = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const dayData = availabilityData.find(d => d.date === dateStr);
@@ -326,7 +326,7 @@ export const ReservationDialog = ({ isOpen, onClose, business }: ReservationDial
               <div className="grid grid-cols-1 gap-4">
                 {availableServices.map((svc) => (
                   <Card 
-                    key={svc.id || svc.service_id} 
+                    key={svc.id} 
                     className={cn(
                       "cursor-pointer hover:shadow-md transition-all",
                       service?.id === svc.id ? "border-2 border-primary" : ""
@@ -580,8 +580,8 @@ export const ReservationDialog = ({ isOpen, onClose, business }: ReservationDial
               onChange={setVerificationCode}
               render={({ slots }) => (
                 <div className="flex gap-2 justify-center">
-                  {slots.map((slot, index) => (
-                    <InputOTPSlot key={index} {...slot} />
+                  {slots.map((slot, idx) => (
+                    <InputOTPSlot key={idx} {...slot} />
                   ))}
                 </div>
               )}
