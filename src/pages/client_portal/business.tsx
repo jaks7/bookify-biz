@@ -52,12 +52,11 @@ const BusinessPage = () => {
         const response = await axios.get(ENDPOINTS.BUSINESS_DETAIL(id));
         console.log("Business data loaded:", response.data);
         
-        // Asegurarnos que cada servicio tiene un id
+        // Asegurarnos que cada servicio tiene un service_id
         const businessData = {
           ...response.data,
           services: response.data.services.map((service: any, index: number) => ({
             ...service,
-            id: service.id || index + 1,
             service_id: service.service_id || index + 1
           }))
         };
@@ -82,8 +81,8 @@ const BusinessPage = () => {
             "7": []
           },
           services: [
-            { id: 1, service_id: 1, name: "Consulta general", duration: 30, price: 15.0 },
-            { id: 2, service_id: 2, name: "Alineado cervical", duration: 60, price: 100.0 }
+            { service_id: 1, name: "Consulta general", duration: 30, price: 15.0 },
+            { service_id: 2, name: "Alineado cervical", duration: 60, price: 100.0 }
           ]
         });
       } finally {
@@ -100,7 +99,7 @@ const BusinessPage = () => {
 
   const handleCloseReservation = () => {
     setIsReservationOpen(false);
-    toast.success("Reserva confirmada correctamente");
+    toast.success("Gracias por usar nuestro sistema de reservas");
   };
 
   if (loading) {
@@ -149,7 +148,6 @@ const BusinessPage = () => {
                 inDialog={true} 
                 onComplete={handleCloseReservation}
                 businessData={business}
-                showConfirmationAsStep={false}
               />
             )}
           </DialogContent>
