@@ -1,48 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  format, 
-  addDays, 
-  subDays, 
-  addWeeks, 
-  subWeeks, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isToday, 
-  isSameDay, 
-  parse,
-  isSameMonth,
-  addMinutes,
-  parseISO
-} from "date-fns";
+import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
-  Calendar as CalendarIcon, 
-  ChevronLeft,
-  ChevronRight,
-  Clock, 
-  Scissors, 
   Phone,
-  CheckCircle2,
   Mail,
-  User
+  User,
+  CheckCircle2
 } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { 
   Form, 
   FormControl, 
@@ -52,16 +19,10 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Professional } from "@/types/professional";
-import { Service, DailyAvailability, AvailableSlot } from "@/types/service";
 
 const services: Service[] = [
   { id: 1, name: "Corte de pelo", duration: 30, price: 15 },
@@ -228,8 +189,8 @@ const findFirstAvailableSlot = (serviceId: number, availabilityData: DailyAvaila
 };
 
 const clientFormSchema = z.object({
-  name: z.string().optional(),
   phone: z.string().min(9, "El número de teléfono debe tener al menos 9 dígitos"),
+  name: z.string().optional(),
   email: z.string().email("El email debe ser válido").optional()
 });
 
@@ -261,8 +222,8 @@ const ClientReservation = () => {
   const clientForm = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      name: "",
       phone: "",
+      name: "",
       email: ""
     }
   });
@@ -697,29 +658,6 @@ const ClientReservation = () => {
 
                   <FormField
                     control={clientForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre y apellido (opcional)</FormLabel>
-                        <FormControl>
-                          <div className="flex items-center">
-                            <div className="bg-gray-100 p-2 rounded-l-md border-y border-l">
-                              <User className="h-5 w-5 text-gray-500" />
-                            </div>
-                            <Input 
-                              className="rounded-l-none" 
-                              placeholder="Ej. María García" 
-                              {...field} 
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={clientForm.control}
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
@@ -742,36 +680,69 @@ const ClientReservation = () => {
                     )}
                   />
 
-                  <FormField
-                    control={clientForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email (opcional)</FormLabel>
-                        <FormControl>
-                          <div className="flex items-center">
-                            <div className="bg-gray-100 p-2 rounded-l-md border-y border-l">
-                              <Mail className="h-5 w-5 text-gray-500" />
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <FormField
+                      control={clientForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre y apellido (opcional)</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center">
+                              <div className="bg-gray-100 p-2 rounded-l-md border-y border-l">
+                                <User className="h-5 w-5 text-gray-500" />
+                              </div>
+                              <Input 
+                                className="rounded-l-none" 
+                                placeholder="Ej. María García" 
+                                {...field} 
+                              />
                             </div>
-                            <Input 
-                              className="rounded-l-none" 
-                              placeholder="Ej. maria@example.com" 
-                              type="email"
-                              {...field} 
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={clientForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email (opcional)</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center">
+                              <div className="bg-gray-100 p-2 rounded-l-md border-y border-l">
+                                <Mail className="h-5 w-5 text-gray-500" />
+                              </div>
+                              <Input 
+                                className="rounded-l-none" 
+                                placeholder="Ej. maria@example.com" 
+                                type="email"
+                                {...field} 
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row sm:justify-end">
-                  <Button variant="outline" type="button" onClick={() => setStep(2)}>
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-4">
+                  <Button 
+                    variant="outline" 
+                    type="button" 
+                    className="sm:order-1"
+                    onClick={() => setStep(2)}
+                  >
                     Atrás
                   </Button>
-                  <Button type="submit">
+                  <Button 
+                    type="submit" 
+                    className="order-first sm:order-2"
+                  >
                     Reservar cita
                   </Button>
                 </div>
