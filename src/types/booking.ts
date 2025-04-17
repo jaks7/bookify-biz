@@ -1,4 +1,3 @@
-
 export interface BusinessDetail {
   name: string;
   description: string | null;
@@ -15,4 +14,14 @@ export interface BusinessDetail {
     price: number;
   }>;
   showConfirmationAsStep?: boolean;
+}
+
+export interface BookingRequest {
+  start_datetime: string;
+  end_datetime: string;
+  service_id: number;
+  professional_id: number;
+  phone: string;
+  name: string;
+  email: string;
 }
