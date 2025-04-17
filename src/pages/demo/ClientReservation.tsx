@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -12,7 +11,9 @@ import {
   eachDayOfInterval, 
   isToday, 
   isSameDay, 
-  parse
+  parse,
+  parseISO,
+  addMinutes
 } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
@@ -25,6 +26,7 @@ import {
   Scissors, 
   User, 
   Phone,
+  Mail,
   CheckCircle2
 } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,10 +61,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Professional, Appointment } from "@/types/service";
+import { Service, Professional, Appointment } from "@/types/service";
 import { BusinessDetail } from "@/types/booking";
 
-// Mock data
 const defaultServices = [
   { id: 1, service_id: 1, name: "Corte de pelo", duration: 30, price: 15 },
   { id: 2, service_id: 2, name: "Tinte", duration: 60, price: 35 },
@@ -71,7 +72,6 @@ const defaultServices = [
   { id: 5, service_id: 5, name: "Masaje facial", duration: 30, price: 20 },
 ];
 
-// Create more detailed mock data for time slots and availability
 const professionals: Professional[] = [
   {
     id: 1,
@@ -121,7 +121,6 @@ const professionals: Professional[] = [
   }
 ];
 
-// Generate available time slots for each day
 const generateAvailableSlots = (date: Date) => {
   const dateStr = format(date, 'yyyy-MM-dd');
   const baseSlots = [
@@ -130,11 +129,9 @@ const generateAvailableSlots = (date: Date) => {
     "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"
   ];
   
-  // Add random availability per professional per day
   const dayAvailability: { [key: string]: string[] } = {};
   
   professionals.forEach(prof => {
-    // Randomly select slots to be available
     const availableSlots = baseSlots.filter(() => Math.random() > 0.3);
     dayAvailability[prof.id.toString()] = availableSlots;
   });
@@ -142,16 +139,14 @@ const generateAvailableSlots = (date: Date) => {
   return dayAvailability;
 };
 
-// Generate month availability data for calendar display
 const generateMonthAvailability = (month: Date) => {
-  const start = startOfWeek(month, { weekStartsOn: 1 }); // Start from Monday
-  const end = endOfWeek(addWeeks(start, 5), { weekStartsOn: 1 }); // Show 6 weeks
+  const start = startOfWeek(month, { weekStartsOn: 1 });
+  const end = endOfWeek(addWeeks(start, 5), { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start, end });
   
   return days.reduce((acc, day) => {
-    // Generate availability percentage
     const dateStr = format(day, 'yyyy-MM-dd');
-    const professionalAvailability = professionals.length * 8; // 8 slots per professional on average
+    const professionalAvailability = professionals.length * 8;
     const random = Math.random();
     const reservedSlots = Math.floor(random * professionalAvailability);
     const percentage = Math.max(0, Math.floor((professionalAvailability - reservedSlots) / professionalAvailability * 100));
@@ -161,29 +156,22 @@ const generateMonthAvailability = (month: Date) => {
   }, {} as Record<string, number>);
 };
 
-// Find first available slot for a service
 const findFirstAvailableSlot = (serviceId: number | string) => {
-  // Loop through next 14 days to find first slot
   for (let i = 0; i < 14; i++) {
     const day = addDays(new Date(), i);
     const dateStr = format(day, 'yyyy-MM-dd');
     
-    // For each professional, check if they can provide this service and have slots available
     for (const prof of professionals) {
-      // Assume all professionals can do all services for demo
       if (prof.isWorking) {
-        // Get working hours
         if (prof.workingHours) {
           for (const hours of prof.workingHours) {
             const startHour = parseInt(hours.start.split(':')[0]);
             const endHour = parseInt(hours.end.split(':')[0]);
             
-            // Check each half hour slot
             for (let hour = startHour; hour < endHour; hour++) {
               for (const minute of ['00', '30']) {
                 const timeSlot = `${hour.toString().padStart(2, '0')}:${minute}`;
                 
-                // Check if slot is not booked
                 const isBooked = prof.appointments?.some(apt => apt.time === timeSlot);
                 
                 if (!isBooked) {
@@ -201,7 +189,6 @@ const findFirstAvailableSlot = (serviceId: number | string) => {
     }
   }
   
-  // If no slot found, return null
   return null;
 };
 
@@ -209,12 +196,14 @@ interface ClientReservationProps {
   inDialog?: boolean;
   onComplete?: () => void;
   businessData?: BusinessDetail;
+  showConfirmationAsStep?: boolean;
 }
 
 const ClientReservation: React.FC<ClientReservationProps> = ({ 
   inDialog = false, 
   onComplete,
-  businessData
+  businessData,
+  showConfirmationAsStep = true
 }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -230,27 +219,29 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
   const [otpValue, setOtpValue] = useState<string>("");
   const [firstAvailableSlots, setFirstAvailableSlots] = useState<Record<string, {date: Date, time: string, professional: string} | null>>({});
   const [dailyAvailableSlots, setDailyAvailableSlots] = useState<{[key: string]: string[]}>({});
+  const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
   
-  // Use either provided business services or default services
   const services = businessData?.services || defaultServices;
 
-  const phoneForm = useForm<{ phone: string }>({
+  const phoneForm = useForm<{ phone: string; fullname: string; email: string }>({
     resolver: zodResolver(z.object({
-      phone: z.string().min(9, "El número de teléfono debe tener al menos 9 dígitos")
+      phone: z.string().min(9, "El número de teléfono debe tener al menos 9 dígitos"),
+      fullname: z.string().optional(),
+      email: z.string().email("Introduce un email válido").optional()
     })),
     defaultValues: {
-      phone: ""
+      phone: "",
+      fullname: "",
+      email: ""
     }
   });
 
-  // Generate week days for the week selector
   const weekDays = eachDayOfInterval({
     start: startOfWeek(currentWeek, { weekStartsOn: 1 }),
     end: endOfWeek(currentWeek, { weekStartsOn: 1 })
   });
 
   useEffect(() => {
-    // Calculate first available slot for each service when component mounts
     const slots: Record<string, {date: Date, time: string, professional: string} | null> = {};
     services.forEach(service => {
       slots[service.service_id ? service.service_id.toString() : (service.id ? service.id.toString() : Math.random().toString())] = 
@@ -260,11 +251,9 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
   }, [services]);
 
   useEffect(() => {
-    // Generate available slots for the selected date
     setDailyAvailableSlots(generateAvailableSlots(selectedDate));
   }, [selectedDate]);
 
-  // Handle week navigation
   const handlePrevWeek = () => {
     setCurrentWeek(subWeeks(currentWeek, 1));
   };
@@ -273,7 +262,6 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
     setCurrentWeek(addWeeks(currentWeek, 1));
   };
 
-  // Get available slots for selected date and service
   const getAvailableSlots = () => {
     let slots: Array<{time: string, professional: string}> = [];
     
@@ -281,11 +269,9 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
       const proSlots = dailyAvailableSlots[pro.id.toString()] || [];
       
       proSlots.forEach(time => {
-        // Check if slot is not already booked
         const isBooked = pro.appointments?.some(apt => apt.time === time);
         
         if (!isBooked) {
-          // Check day period filter
           const hour = parseInt(time.split(':')[0]);
           if ((dayPeriod === "morning" && hour < 14) ||
               (dayPeriod === "afternoon" && hour >= 14) ||
@@ -299,7 +285,6 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
       });
     });
     
-    // Sort slots by time
     return slots.sort((a, b) => a.time.localeCompare(b.time));
   };
 
@@ -309,20 +294,20 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
     const dateStr = format(date, 'yyyy-MM-dd');
     const availability = availabilityData[dateStr] || 0;
     
-    if (availability === 0) return "bg-gray-200 text-gray-700"; // No slots
-    if (availability < 25) return "bg-rose-400 text-white hover:bg-rose-500"; // Very few slots
-    if (availability < 50) return "bg-amber-400 text-white hover:bg-amber-500"; // Some slots
-    return "bg-emerald-400 text-white hover:bg-emerald-500"; // Many slots
+    if (availability === 0) return "bg-gray-200 text-gray-700";
+    if (availability < 25) return "bg-rose-400 text-white hover:bg-rose-500";
+    if (availability < 50) return "bg-amber-400 text-white hover:bg-amber-500";
+    return "bg-emerald-400 text-white hover:bg-emerald-500";
   };
 
   const getWeekDayAvailabilityColor = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
     const availability = availabilityData[dateStr] || 0;
     
-    if (availability === 0) return "bg-gray-200"; // No slots
-    if (availability < 25) return "bg-yellow-400"; // Very few slots
-    if (availability < 50) return "bg-green-400"; // Some slots
-    return "bg-green-600"; // Many slots
+    if (availability === 0) return "bg-gray-200";
+    if (availability < 25) return "bg-yellow-400";
+    if (availability < 50) return "bg-green-400";
+    return "bg-green-600";
   };
 
   const handleServiceSelect = (serviceId: string) => {
@@ -340,38 +325,17 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
     setStep(3);
   };
 
-  const onPhoneSubmit = (data: { phone: string }) => {
-    // Mock check if client exists
-    const clientExists = Math.random() > 0.5;
-    setIsNewClient(!clientExists);
-    
-    if (clientExists) {
-      // Existing client
-      toast({
-        title: "Reserva confirmada",
-        description: "Tu cita ha sido reservada correctamente.",
-        variant: "default",
-      });
-      setStep(5); // Confirmation
+  const onPhoneSubmit = (data: { phone: string; fullname: string; email: string }) => {
+    if (showConfirmationAsStep) {
+      setStep(4);
     } else {
-      // New client, needs OTP
-      toast({
-        title: "Código de verificación enviado",
-        description: "Te hemos enviado un código de verificación por SMS.",
-        variant: "default",
-      });
-      setStep(4); // OTP verification
+      setShowConfirmation(true);
     }
   };
 
   const verifyOtp = () => {
     if (otpValue.length === 4) {
-      toast({
-        title: "Reserva confirmada",
-        description: "Tu cita ha sido reservada correctamente.",
-        variant: "default",
-      });
-      setStep(5); // Confirmation
+      setShowConfirmation(true);
     } else {
       toast({
         title: "Código incorrecto",
@@ -393,26 +357,25 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
     <div className={inDialog ? "px-0" : "container mx-auto px-4 py-8 max-w-4xl"}>
       {!inDialog && <h1 className="text-2xl font-bold mb-6">Reserva tu cita</h1>}
       
-      {/* Progress steps */}
       <div className="flex justify-between mb-8 relative">
         <div className="absolute top-4 left-0 right-0 h-1 bg-gray-200">
           <div 
             className="h-full bg-emerald-500 transition-all" 
-            style={{ width: `${(step - 1) * 25}%` }}
+            style={{ width: `${(step - 1) * (showConfirmationAsStep ? 25 : 50)}%` }}
           ></div>
         </div>
         
-        {[1, 2, 3, 4].map((s) => (
+        {Array.from({length: showConfirmationAsStep ? 4 : 3}).map((_, i) => (
           <div 
-            key={s} 
+            key={i + 1} 
             className={cn(
               "z-10 rounded-full h-8 w-8 flex items-center justify-center text-sm font-medium transition-colors",
-              step >= s 
+              step >= i + 1 
                 ? "bg-emerald-500 text-white" 
                 : "bg-gray-200 text-gray-500"
             )}
           >
-            {s}
+            {i + 1}
           </div>
         ))}
       </div>
@@ -474,7 +437,6 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
           <CardContent>
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
-                {/* Week day selector */}
                 <div className="rounded-md border mb-4">
                   <div className="bg-gray-50 border-b p-3 flex justify-between items-center">
                     <h3 className="font-medium">Marzo 2025</h3>
@@ -623,7 +585,7 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
       {step === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle>Introduce tu número de teléfono</CardTitle>
+            <CardTitle>Tus datos de contacto</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...phoneForm}>
@@ -648,12 +610,14 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
                         <span className="text-gray-500">Hora:</span>
                         <span className="font-medium">{selectedSlot}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Profesional:</span>
-                        <span className="font-medium">
-                          {professionals.find(p => p.id.toString() === selectedProfessional)?.fullname}
-                        </span>
-                      </div>
+                      {selectedProfessional && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Profesional:</span>
+                          <span className="font-medium">
+                            {professionals.find(p => p.id.toString() === selectedProfessional)?.fullname}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -680,13 +644,70 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
                       </FormItem>
                     )}
                   />
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <FormField
+                      control={phoneForm.control}
+                      name="fullname"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre y apellido (opcional)</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center">
+                              <div className="bg-gray-100 p-2 rounded-l-md border-y border-l">
+                                <User className="h-5 w-5 text-gray-500" />
+                              </div>
+                              <Input 
+                                className="rounded-l-none" 
+                                placeholder="Ej. María García" 
+                                {...field} 
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={phoneForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email (opcional)</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center">
+                              <div className="bg-gray-100 p-2 rounded-l-md border-y border-l">
+                                <Mail className="h-5 w-5 text-gray-500" />
+                              </div>
+                              <Input 
+                                className="rounded-l-none" 
+                                placeholder="Ej. maria@example.com" 
+                                type="email"
+                                {...field} 
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row sm:justify-end">
-                  <Button variant="outline" type="button" onClick={() => setStep(2)}>
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-4">
+                  <Button 
+                    variant="outline" 
+                    type="button" 
+                    className="sm:order-1"
+                    onClick={() => setStep(2)}
+                  >
                     Atrás
                   </Button>
-                  <Button type="submit">
+                  <Button 
+                    type="submit" 
+                    className="order-first sm:order-2"
+                  >
                     Reservar cita
                   </Button>
                 </div>
@@ -696,7 +717,7 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
         </Card>
       )}
 
-      {step === 4 && (
+      {showConfirmationAsStep && step === 4 && (
         <Card>
           <CardHeader>
             <CardTitle>Verifica tu número de teléfono</CardTitle>
@@ -744,7 +765,7 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
         </Card>
       )}
 
-      {step === 5 && (
+      {showConfirmation && !showConfirmationAsStep && (
         <Card className="border-emerald-200 bg-emerald-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-emerald-700">
@@ -775,12 +796,20 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
                     <span className="text-gray-500">Hora:</span>
                     <span className="font-medium">{selectedSlot}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Profesional:</span>
-                    <span className="font-medium">
-                      {professionals.find(p => p.id.toString() === selectedProfessional)?.fullname}
-                    </span>
-                  </div>
+                  {selectedProfessional && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Profesional:</span>
+                      <span className="font-medium">
+                        {professionals.find(p => p.id.toString() === selectedProfessional)?.fullname}
+                      </span>
+                    </div>
+                  )}
+                  {phoneForm.getValues("fullname") && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Cliente:</span>
+                      <span className="font-medium">{phoneForm.getValues("fullname")}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
