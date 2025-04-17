@@ -12,20 +12,21 @@ import {
   eachDayOfInterval, 
   isToday, 
   isSameDay, 
-  parse
+  parse,
+  isSameMonth,
+  addMinutes,
+  parseISO
 } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
   Calendar as CalendarIcon, 
-  ChevronDown, 
   ChevronLeft,
   ChevronRight,
   Clock, 
-  Filter, 
   Scissors, 
-  User, 
   Phone,
-  CheckCircle2
+  CheckCircle2,
+  ExternalLink
 } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,13 +36,6 @@ import {
   PopoverContent, 
   PopoverTrigger 
 } from "@/components/ui/popover";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
 import { 
   Form, 
   FormControl, 
@@ -59,22 +53,26 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Professional, Appointment } from "@/types/professional";
+import { Professional } from "@/types/professional";
+import { Service, DailyAvailability, AvailableSlot } from "@/types/service";
 
 // Mock data
-const services = [
-  { id: "s1", name: "Corte de pelo", duration: 30, price: 15 },
-  { id: "s2", name: "Tinte", duration: 60, price: 35 },
-  { id: "s3", name: "Manicura", duration: 45, price: 25 },
-  { id: "s4", name: "Pedicura", duration: 45, price: 25 },
-  { id: "s5", name: "Masaje facial", duration: 30, price: 20 },
+const services: Service[] = [
+  { id: 1, name: "Corte de pelo", duration: 30, price: 15 },
+  { id: 2, name: "Tinte", duration: 60, price: 35 },
+  { id: 3, name: "Manicura", duration: 45, price: 25 },
+  { id: 4, name: "Pedicura", duration: 45, price: 25 },
+  { id: 5, name: "Masaje facial", duration: 30, price: 20 },
 ];
 
 // Create more detailed mock data for time slots and availability
 const professionals: Professional[] = [
   {
-    id: "prof1",
+    id: 1,
+    professional_id: 1,
     name: "María García",
+    surnames: null,
+    fullname: "María García",
     isWorking: true,
     workingHours: [
       { start: "09:00", end: "14:00" },
@@ -87,8 +85,11 @@ const professionals: Professional[] = [
     ]
   },
   {
-    id: "prof2",
+    id: 2,
+    professional_id: 2,
     name: "Juan Pérez",
+    surnames: null,
+    fullname: "Juan Pérez",
     isWorking: true,
     workingHours: [
       { start: "09:00", end: "14:00" },
@@ -101,8 +102,11 @@ const professionals: Professional[] = [
     ]
   },
   {
-    id: "prof3",
+    id: 3,
+    professional_id: 3,
     name: "Elena Martínez",
+    surnames: null,
+    fullname: "Elena Martínez",
     isWorking: true,
     workingHours: [
       { start: "09:00", end: "14:00" }
@@ -114,40 +118,86 @@ const professionals: Professional[] = [
   }
 ];
 
-// Generate available time slots for each day
-const generateAvailableSlots = (date: Date) => {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  const baseSlots = [
-    "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", 
-    "12:00", "12:30", "13:00", "13:30", "14:00", "16:00", 
-    "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"
-  ];
+// Mock data for available slots from backend
+const mockAvailabilityData: DailyAvailability[] = [
+  {
+    date: "2025-04-18",
+    business_hours: [
+      { start: "09:00", end: "17:00" }
+    ],
+    available_slots: [
+      { start: "09:30", end: "10:30" },
+      { start: "12:30", end: "17:00" }
+    ]
+  },
+  {
+    date: "2025-04-19",
+    business_hours: [
+      { start: "09:00", end: "14:00" }
+    ],
+    available_slots: [
+      { start: "09:00", end: "14:00" }
+    ]
+  }
+];
+
+// Function to generate time slots based on available slots and service duration
+const generateTimeSlots = (availableSlots: AvailableSlot[], serviceDuration: number): string[] => {
+  let timeSlots: string[] = [];
   
-  // Add random availability per professional per day
-  const dayAvailability: { [key: string]: string[] } = {};
-  
-  professionals.forEach(prof => {
-    // Randomly select slots to be available
-    const availableSlots = baseSlots.filter(() => Math.random() > 0.3);
-    dayAvailability[prof.id] = availableSlots;
+  availableSlots.forEach(slot => {
+    const startTime = parseISO(`2023-01-01T${slot.start}`);
+    const endTime = parseISO(`2023-01-01T${slot.end}`);
+    
+    let currentTime = startTime;
+    while (currentTime < endTime) {
+      timeSlots.push(format(currentTime, 'HH:mm'));
+      currentTime = addMinutes(currentTime, serviceDuration);
+    }
   });
   
-  return dayAvailability;
+  return [...new Set(timeSlots)].sort(); // Remove duplicates and sort
+};
+
+// Function to find availability for a specific date
+const findAvailabilityForDate = (date: Date, availabilityData: DailyAvailability[]): DailyAvailability | null => {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return availabilityData.find(day => day.date === dateStr) || null;
 };
 
 // Generate month availability data for calendar display
-const generateMonthAvailability = (month: Date) => {
+const generateMonthAvailability = (availabilityData: DailyAvailability[], month: Date) => {
   const start = startOfWeek(month, { weekStartsOn: 1 }); // Start from Monday
   const end = endOfWeek(addWeeks(start, 5), { weekStartsOn: 1 }); // Show 6 weeks
   const days = eachDayOfInterval({ start, end });
   
   return days.reduce((acc, day) => {
-    // Generate availability percentage
     const dateStr = format(day, 'yyyy-MM-dd');
-    const professionalAvailability = professionals.length * 8; // 8 slots per professional on average
-    const random = Math.random();
-    const reservedSlots = Math.floor(random * professionalAvailability);
-    const percentage = Math.max(0, Math.floor((professionalAvailability - reservedSlots) / professionalAvailability * 100));
+    
+    // Check if there's availability data for this day
+    const dayAvailability = availabilityData.find(d => d.date === dateStr);
+    
+    let percentage = 0;
+    if (dayAvailability) {
+      // Calculate availability percentage based on available hours
+      let totalAvailableMinutes = 0;
+      dayAvailability.available_slots.forEach(slot => {
+        const startTime = parseISO(`2023-01-01T${slot.start}`);
+        const endTime = parseISO(`2023-01-01T${slot.end}`);
+        totalAvailableMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+      });
+      
+      // Calculate total business hours
+      let totalBusinessMinutes = 0;
+      dayAvailability.business_hours.forEach(hours => {
+        const startTime = parseISO(`2023-01-01T${hours.start}`);
+        const endTime = parseISO(`2023-01-01T${hours.end}`);
+        totalBusinessMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+      });
+      
+      percentage = totalBusinessMinutes > 0 ? 
+        Math.floor((totalAvailableMinutes / totalBusinessMinutes) * 100) : 0;
+    }
     
     acc[dateStr] = percentage;
     return acc;
@@ -155,46 +205,31 @@ const generateMonthAvailability = (month: Date) => {
 };
 
 // Find first available slot for a service
-const findFirstAvailableSlot = (serviceId: string) => {
-  // Loop through next 14 days to find first slot
+const findFirstAvailableSlot = (serviceId: number, availabilityData: DailyAvailability[]) => {
+  const service = services.find(s => s.id === serviceId);
+  if (!service) return null;
+  
+  // Look through the next 14 days to find first available slot
   for (let i = 0; i < 14; i++) {
     const day = addDays(new Date(), i);
     const dateStr = format(day, 'yyyy-MM-dd');
     
-    // For each professional, check if they can provide this service and have slots available
-    for (const prof of professionals) {
-      // Assume all professionals can do all services for demo
-      if (prof.isWorking) {
-        // Get working hours
-        if (prof.workingHours) {
-          for (const hours of prof.workingHours) {
-            const startHour = parseInt(hours.start.split(':')[0]);
-            const endHour = parseInt(hours.end.split(':')[0]);
-            
-            // Check each half hour slot
-            for (let hour = startHour; hour < endHour; hour++) {
-              for (const minute of ['00', '30']) {
-                const timeSlot = `${hour.toString().padStart(2, '0')}:${minute}`;
-                
-                // Check if slot is not booked
-                const isBooked = prof.appointments?.some(apt => apt.time === timeSlot);
-                
-                if (!isBooked) {
-                  return {
-                    date: day,
-                    time: timeSlot,
-                    professional: prof.name
-                  };
-                }
-              }
-            }
-          }
-        }
+    // Check if there's availability for this day
+    const dayAvailability = availabilityData.find(d => d.date === dateStr);
+    if (dayAvailability && dayAvailability.available_slots.length > 0) {
+      // Generate time slots for this service
+      const timeSlots = generateTimeSlots(dayAvailability.available_slots, service.duration);
+      
+      if (timeSlots.length > 0) {
+        return {
+          date: day,
+          time: timeSlots[0],
+          professional: "Primer disponible" // Generic message as we might not have a specific professional
+        };
       }
     }
   }
   
-  // If no slot found, return null
   return null;
 };
 
@@ -203,16 +238,22 @@ const ClientReservation = () => {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
-  const [availabilityData, setAvailabilityData] = useState(() => generateMonthAvailability(new Date()));
+  const [currentMonthDisplay, setCurrentMonthDisplay] = useState<string>(
+    format(currentWeek, "MMMM yyyy", { locale: es })
+  );
+  const [availabilityData, setAvailabilityData] = useState(() => 
+    generateMonthAvailability(mockAvailabilityData, new Date())
+  );
   const [dayPeriod, setDayPeriod] = useState<string>("all");
-  const [selectedService, setSelectedService] = useState<string>("");
+  const [selectedService, setSelectedService] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string>("");
-  const [selectedProfessional, setSelectedProfessional] = useState<string>("");
+  const [selectedProfessional, setSelectedProfessional] = useState<number | null>(null);
   const [step, setStep] = useState<number>(1);
   const [isNewClient, setIsNewClient] = useState<boolean | null>(null);
   const [otpValue, setOtpValue] = useState<string>("");
-  const [firstAvailableSlots, setFirstAvailableSlots] = useState<Record<string, {date: Date, time: string, professional: string} | null>>({});
-  const [dailyAvailableSlots, setDailyAvailableSlots] = useState<{[key: string]: string[]}>({});
+  const [firstAvailableSlots, setFirstAvailableSlots] = useState<Record<number, {date: Date, time: string, professional: string} | null>>({});
+  const [dailySlots, setDailySlots] = useState<string[]>([]);
+  const [showProfessionalsSelection, setShowProfessionalsSelection] = useState<boolean>(false);
 
   const phoneForm = useForm<{ phone: string }>({
     resolver: zodResolver(z.object({
@@ -231,17 +272,51 @@ const ClientReservation = () => {
 
   useEffect(() => {
     // Calculate first available slot for each service when component mounts
-    const slots: Record<string, {date: Date, time: string, professional: string} | null> = {};
+    const slots: Record<number, {date: Date, time: string, professional: string} | null> = {};
     services.forEach(service => {
-      slots[service.id] = findFirstAvailableSlot(service.id);
+      slots[service.id] = findFirstAvailableSlot(service.id, mockAvailabilityData);
     });
     setFirstAvailableSlots(slots);
   }, []);
 
   useEffect(() => {
-    // Generate available slots for the selected date
-    setDailyAvailableSlots(generateAvailableSlots(selectedDate));
-  }, [selectedDate]);
+    // Update the month display when current week changes
+    // Check if any day in the week is in a different month than the current display
+    const firstDay = weekDays[0];
+    const lastDay = weekDays[weekDays.length - 1];
+    
+    // If we've crossed a month boundary
+    if (!isSameMonth(firstDay, new Date(currentMonthDisplay)) || 
+        !isSameMonth(lastDay, new Date(currentMonthDisplay))) {
+      // If more days are in the new month, use that month for display
+      const daysInCurrentMonth = weekDays.filter(day => 
+        format(day, 'MMMM yyyy', { locale: es }) === currentMonthDisplay
+      ).length;
+      
+      const daysInNewMonth = weekDays.length - daysInCurrentMonth;
+      
+      if (daysInNewMonth > daysInCurrentMonth) {
+        // More days are in the new month, so update display
+        setCurrentMonthDisplay(format(daysInNewMonth > 3 ? lastDay : firstDay, 'MMMM yyyy', { locale: es }));
+      }
+    }
+  }, [currentWeek, weekDays, currentMonthDisplay]);
+
+  useEffect(() => {
+    // Generate available slots for the selected date and service
+    if (selectedService && selectedDate) {
+      const service = services.find(s => s.id === selectedService);
+      if (service) {
+        const dayAvailability = findAvailabilityForDate(selectedDate, mockAvailabilityData);
+        if (dayAvailability) {
+          const slots = generateTimeSlots(dayAvailability.available_slots, service.duration);
+          setDailySlots(slots);
+        } else {
+          setDailySlots([]);
+        }
+      }
+    }
+  }, [selectedDate, selectedService]);
 
   // Handle week navigation
   const handlePrevWeek = () => {
@@ -252,37 +327,18 @@ const ClientReservation = () => {
     setCurrentWeek(addWeeks(currentWeek, 1));
   };
 
-  // Get available slots for selected date and service
-  const getAvailableSlots = () => {
-    let slots: Array<{time: string, professional: string}> = [];
-    
-    professionals.forEach(pro => {
-      const proSlots = dailyAvailableSlots[pro.id] || [];
-      
-      proSlots.forEach(time => {
-        // Check if slot is not already booked
-        const isBooked = pro.appointments?.some(apt => apt.time === time);
-        
-        if (!isBooked) {
-          // Check day period filter
-          const hour = parseInt(time.split(':')[0]);
-          if ((dayPeriod === "morning" && hour < 14) ||
-              (dayPeriod === "afternoon" && hour >= 14) ||
-              dayPeriod === "all") {
-            slots.push({
-              time,
-              professional: pro.id
-            });
-          }
-        }
-      });
+  // Filter slots based on day period
+  const getFilteredSlots = () => {
+    return dailySlots.filter(timeSlot => {
+      const hour = parseInt(timeSlot.split(':')[0]);
+      if (dayPeriod === "morning" && hour < 14) return true;
+      if (dayPeriod === "afternoon" && hour >= 14) return true;
+      if (dayPeriod === "all") return true;
+      return false;
     });
-    
-    // Sort slots by time
-    return slots.sort((a, b) => a.time.localeCompare(b.time));
   };
 
-  const availableSlots = getAvailableSlots();
+  const filteredSlots = getFilteredSlots();
 
   const getDayAvailabilityClass = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
@@ -304,7 +360,7 @@ const ClientReservation = () => {
     return "bg-green-600"; // Many slots
   };
 
-  const handleServiceSelect = (serviceId: string) => {
+  const handleServiceSelect = (serviceId: number) => {
     setSelectedService(serviceId);
     setStep(2);
   };
@@ -313,7 +369,7 @@ const ClientReservation = () => {
     setSelectedDate(day);
   };
 
-  const handleSlotSelect = (time: string, professionalId: string) => {
+  const handleSlotSelect = (time: string, professionalId: number | null = null) => {
     setSelectedSlot(time);
     setSelectedProfessional(professionalId);
     setStep(3);
@@ -362,6 +418,59 @@ const ClientReservation = () => {
 
   const resetAndGoHome = () => {
     navigate("/");
+  };
+
+  const renderTimeSlots = () => {
+    if (filteredSlots.length === 0) {
+      return (
+        <div className="text-center p-6 text-gray-500 bg-gray-50 rounded-lg">
+          No hay horas disponibles para esta fecha y filtro.
+        </div>
+      );
+    }
+    
+    if (!showProfessionalsSelection) {
+      // Show just time slots without professional selection
+      return (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {filteredSlots.map((timeSlot) => (
+            <Button
+              key={timeSlot}
+              variant="outline"
+              className="h-auto py-3 justify-center"
+              onClick={() => handleSlotSelect(timeSlot)}
+            >
+              <Clock className="h-4 w-4 mr-2 text-emerald-500" />
+              <div>{timeSlot}</div>
+            </Button>
+          ))}
+        </div>
+      );
+    } else {
+      // Group slots by professional
+      return (
+        <div className="space-y-6">
+          {professionals.map((professional) => (
+            <div key={professional.id} className="space-y-2">
+              <h3 className="font-medium text-sm">{professional.fullname}</h3>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {filteredSlots.map((timeSlot) => (
+                  <Button
+                    key={`${professional.id}-${timeSlot}`}
+                    variant="outline"
+                    className="h-auto py-3 justify-center"
+                    onClick={() => handleSlotSelect(timeSlot, professional.id)}
+                  >
+                    <Clock className="h-4 w-4 mr-2 text-emerald-500" />
+                    <div>{timeSlot}</div>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
   };
 
   return (
@@ -428,7 +537,7 @@ const ClientReservation = () => {
                         <div className="mt-2 text-xs border-t pt-2">
                           <p className="font-medium text-emerald-600">Primera cita disponible:</p>
                           <p>{format(firstSlot.date, "EEEE d 'de' MMMM", { locale: es })}</p>
-                          <p>{firstSlot.time} ({firstSlot.professional})</p>
+                          <p>{firstSlot.time}</p>
                         </div>
                       )}
                     </div>
@@ -451,7 +560,7 @@ const ClientReservation = () => {
                 {/* Week day selector */}
                 <div className="rounded-md border mb-4">
                   <div className="bg-gray-50 border-b p-3 flex justify-between items-center">
-                    <h3 className="font-medium">Marzo 2025</h3>
+                    <h3 className="font-medium capitalize">{currentMonthDisplay}</h3>
                     <div className="flex gap-2">
                       <Button variant="outline" size="icon" onClick={handlePrevWeek}>
                         <ChevronLeft className="h-4 w-4" />
@@ -558,31 +667,7 @@ const ClientReservation = () => {
                   Horas disponibles para {format(selectedDate, "EEEE d 'de' MMMM", { locale: es })}
                 </div>
                 
-                {availableSlots.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {availableSlots.map((slot, idx) => {
-                      const professional = professionals.find(p => p.id === slot.professional);
-                      return (
-                        <Button
-                          key={`${slot.professional}-${slot.time}`}
-                          variant="outline"
-                          className="h-auto py-3 justify-start"
-                          onClick={() => handleSlotSelect(slot.time, slot.professional)}
-                        >
-                          <Clock className="h-4 w-4 mr-2 text-emerald-500" />
-                          <div className="text-left">
-                            <div>{slot.time}</div>
-                            <div className="text-xs text-gray-500">{professional?.name}</div>
-                          </div>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center p-6 text-gray-500 bg-gray-50 rounded-lg">
-                    No hay horas disponibles para esta fecha y filtro.
-                  </div>
-                )}
+                {renderTimeSlots()}
               </div>
             </div>
           </CardContent>
@@ -616,10 +701,14 @@ const ClientReservation = () => {
                         <span className="text-gray-500">Hora:</span>
                         <span className="font-medium">{selectedSlot}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Profesional:</span>
-                        <span className="font-medium">{professionals.find(p => p.id === selectedProfessional)?.name}</span>
-                      </div>
+                      {selectedProfessional && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Profesional:</span>
+                          <span className="font-medium">
+                            {professionals.find(p => p.id === selectedProfessional)?.fullname}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -737,10 +826,14 @@ const ClientReservation = () => {
                     <span className="text-gray-500">Hora:</span>
                     <span className="font-medium">{selectedSlot}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Profesional:</span>
-                    <span className="font-medium">{professionals.find(p => p.id === selectedProfessional)?.name}</span>
-                  </div>
+                  {selectedProfessional && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Profesional:</span>
+                      <span className="font-medium">
+                        {professionals.find(p => p.id === selectedProfessional)?.fullname}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
