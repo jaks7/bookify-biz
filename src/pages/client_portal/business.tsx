@@ -1,14 +1,19 @@
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { BusinessDetails } from "@/components/business/BusinessDetails";
 import { BusinessDetail } from "@/types/booking";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ReservationDialog } from "@/components/client-portal/ReservationDialog";
 import axios from "axios";
 import { ENDPOINTS } from "@/config/api";
 import { useAuth } from "@/stores/authContext";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
+
+// Importar el componente de ClientReservation para usar su lógica
+import ClientReservation from "../demo/ClientReservation";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 // Datos de ejemplo en caso de error o mientras se cargan
 const fallbackBusinessData: BusinessDetail = {
@@ -29,6 +34,7 @@ const BusinessPage = () => {
   const [isReservationOpen, setIsReservationOpen] = useState(false);
   const { businessId } = useParams<{ businessId: string }>();
   const { currentBusiness } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchBusinessDetails = async () => {
@@ -45,7 +51,17 @@ const BusinessPage = () => {
         
         const response = await axios.get(ENDPOINTS.BUSINESS_DETAIL(id));
         console.log("Business data loaded:", response.data);
-        setBusiness(response.data);
+        
+        // Asegurarnos que cada servicio tiene un service_id
+        const businessData = {
+          ...response.data,
+          services: response.data.services.map((service: any, index: number) => ({
+            ...service,
+            service_id: service.service_id || index + 1
+          }))
+        };
+        
+        setBusiness(businessData);
       } catch (err) {
         console.error("Error fetching business details:", err);
         setError("No se pudieron cargar los detalles del negocio");
@@ -83,6 +99,7 @@ const BusinessPage = () => {
 
   const handleCloseReservation = () => {
     setIsReservationOpen(false);
+    toast.success("Gracias por usar nuestro sistema de reservas");
   };
 
   if (loading) {
@@ -123,12 +140,18 @@ const BusinessPage = () => {
           } 
         />
         
-        {/* Diálogo de reserva */}
-        <ReservationDialog 
-          isOpen={isReservationOpen}
-          onClose={handleCloseReservation}
-          business={business}
-        />
+        {/* Usamos un Dialog con el contenido de ClientReservation */}
+        <Dialog open={isReservationOpen} onOpenChange={setIsReservationOpen}>
+          <DialogContent className="sm:max-w-[100%] md:max-w-[90%] lg:max-w-[80%] max-h-[90vh] overflow-y-auto">
+            {isReservationOpen && (
+              <ClientReservation 
+                inDialog={true} 
+                onComplete={handleCloseReservation}
+                businessData={business}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

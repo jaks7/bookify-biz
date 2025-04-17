@@ -59,22 +59,25 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Professional, Appointment } from "@/types/professional";
+import { Professional, Appointment } from "@/types/service";
+import { BusinessDetail } from "@/types/booking";
 
 // Mock data
-const services = [
-  { id: "s1", name: "Corte de pelo", duration: 30, price: 15 },
-  { id: "s2", name: "Tinte", duration: 60, price: 35 },
-  { id: "s3", name: "Manicura", duration: 45, price: 25 },
-  { id: "s4", name: "Pedicura", duration: 45, price: 25 },
-  { id: "s5", name: "Masaje facial", duration: 30, price: 20 },
+const defaultServices = [
+  { id: 1, service_id: 1, name: "Corte de pelo", duration: 30, price: 15 },
+  { id: 2, service_id: 2, name: "Tinte", duration: 60, price: 35 },
+  { id: 3, service_id: 3, name: "Manicura", duration: 45, price: 25 },
+  { id: 4, service_id: 4, name: "Pedicura", duration: 45, price: 25 },
+  { id: 5, service_id: 5, name: "Masaje facial", duration: 30, price: 20 },
 ];
 
 // Create more detailed mock data for time slots and availability
 const professionals: Professional[] = [
   {
-    id: "prof1",
+    id: 1,
+    professional_id: 1,
     name: "María García",
+    fullname: "María García",
     isWorking: true,
     workingHours: [
       { start: "09:00", end: "14:00" },
@@ -87,8 +90,10 @@ const professionals: Professional[] = [
     ]
   },
   {
-    id: "prof2",
+    id: 2,
+    professional_id: 2,
     name: "Juan Pérez",
+    fullname: "Juan Pérez",
     isWorking: true,
     workingHours: [
       { start: "09:00", end: "14:00" },
@@ -101,8 +106,10 @@ const professionals: Professional[] = [
     ]
   },
   {
-    id: "prof3",
+    id: 3,
+    professional_id: 3,
     name: "Elena Martínez",
+    fullname: "Elena Martínez",
     isWorking: true,
     workingHours: [
       { start: "09:00", end: "14:00" }
@@ -129,7 +136,7 @@ const generateAvailableSlots = (date: Date) => {
   professionals.forEach(prof => {
     // Randomly select slots to be available
     const availableSlots = baseSlots.filter(() => Math.random() > 0.3);
-    dayAvailability[prof.id] = availableSlots;
+    dayAvailability[prof.id.toString()] = availableSlots;
   });
   
   return dayAvailability;
@@ -155,7 +162,7 @@ const generateMonthAvailability = (month: Date) => {
 };
 
 // Find first available slot for a service
-const findFirstAvailableSlot = (serviceId: string) => {
+const findFirstAvailableSlot = (serviceId: number | string) => {
   // Loop through next 14 days to find first slot
   for (let i = 0; i < 14; i++) {
     const day = addDays(new Date(), i);
@@ -183,7 +190,7 @@ const findFirstAvailableSlot = (serviceId: string) => {
                   return {
                     date: day,
                     time: timeSlot,
-                    professional: prof.name
+                    professional: prof.fullname
                   };
                 }
               }
@@ -198,7 +205,17 @@ const findFirstAvailableSlot = (serviceId: string) => {
   return null;
 };
 
-const ClientReservation = () => {
+interface ClientReservationProps {
+  inDialog?: boolean;
+  onComplete?: () => void;
+  businessData?: BusinessDetail;
+}
+
+const ClientReservation: React.FC<ClientReservationProps> = ({ 
+  inDialog = false, 
+  onComplete,
+  businessData
+}) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -213,6 +230,9 @@ const ClientReservation = () => {
   const [otpValue, setOtpValue] = useState<string>("");
   const [firstAvailableSlots, setFirstAvailableSlots] = useState<Record<string, {date: Date, time: string, professional: string} | null>>({});
   const [dailyAvailableSlots, setDailyAvailableSlots] = useState<{[key: string]: string[]}>({});
+  
+  // Use either provided business services or default services
+  const services = businessData?.services || defaultServices;
 
   const phoneForm = useForm<{ phone: string }>({
     resolver: zodResolver(z.object({
@@ -233,10 +253,11 @@ const ClientReservation = () => {
     // Calculate first available slot for each service when component mounts
     const slots: Record<string, {date: Date, time: string, professional: string} | null> = {};
     services.forEach(service => {
-      slots[service.id] = findFirstAvailableSlot(service.id);
+      slots[service.service_id ? service.service_id.toString() : (service.id ? service.id.toString() : Math.random().toString())] = 
+        findFirstAvailableSlot(service.service_id || service.id || 0);
     });
     setFirstAvailableSlots(slots);
-  }, []);
+  }, [services]);
 
   useEffect(() => {
     // Generate available slots for the selected date
@@ -257,7 +278,7 @@ const ClientReservation = () => {
     let slots: Array<{time: string, professional: string}> = [];
     
     professionals.forEach(pro => {
-      const proSlots = dailyAvailableSlots[pro.id] || [];
+      const proSlots = dailyAvailableSlots[pro.id.toString()] || [];
       
       proSlots.forEach(time => {
         // Check if slot is not already booked
@@ -271,7 +292,7 @@ const ClientReservation = () => {
               dayPeriod === "all") {
             slots.push({
               time,
-              professional: pro.id
+              professional: pro.id.toString()
             });
           }
         }
@@ -284,8 +305,8 @@ const ClientReservation = () => {
 
   const availableSlots = getAvailableSlots();
 
-  const getDayAvailabilityClass = (day: Date) => {
-    const dateStr = format(day, 'yyyy-MM-dd');
+  const getDayAvailabilityClass = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
     const availability = availabilityData[dateStr] || 0;
     
     if (availability === 0) return "bg-gray-200 text-gray-700"; // No slots
@@ -361,12 +382,16 @@ const ClientReservation = () => {
   };
 
   const resetAndGoHome = () => {
-    navigate("/");
+    if (inDialog && onComplete) {
+      onComplete();
+    } else {
+      navigate("/");
+    }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">Reserva tu cita</h1>
+    <div className={inDialog ? "px-0" : "container mx-auto px-4 py-8 max-w-4xl"}>
+      {!inDialog && <h1 className="text-2xl font-bold mb-6">Reserva tu cita</h1>}
       
       {/* Progress steps */}
       <div className="flex justify-between mb-8 relative">
@@ -399,16 +424,17 @@ const ClientReservation = () => {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             {services.map(service => {
-              const firstSlot = firstAvailableSlots[service.id];
+              const serviceId = service.service_id?.toString() || service.id?.toString() || "";
+              const firstSlot = firstAvailableSlots[serviceId];
               
               return (
                 <Card 
-                  key={service.id} 
+                  key={serviceId} 
                   className={cn(
                     "cursor-pointer hover:bg-gray-50 transition-colors",
-                    selectedService === service.id && "ring-2 ring-emerald-500"
+                    selectedService === serviceId && "ring-2 ring-emerald-500"
                   )}
-                  onClick={() => handleServiceSelect(service.id)}
+                  onClick={() => handleServiceSelect(serviceId)}
                 >
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-2">
@@ -516,7 +542,9 @@ const ClientReservation = () => {
                       locale={es}
                       className="pointer-events-auto"
                       classNames={{
-                        day: (date) => cn(getDayAvailabilityClass(date))
+                        day: (date) => {
+                          return getDayAvailabilityClass(date);
+                        }
                       }}
                     />
                   </PopoverContent>
@@ -561,7 +589,7 @@ const ClientReservation = () => {
                 {availableSlots.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2">
                     {availableSlots.map((slot, idx) => {
-                      const professional = professionals.find(p => p.id === slot.professional);
+                      const professional = professionals.find(p => p.id.toString() === slot.professional);
                       return (
                         <Button
                           key={`${slot.professional}-${slot.time}`}
@@ -572,7 +600,7 @@ const ClientReservation = () => {
                           <Clock className="h-4 w-4 mr-2 text-emerald-500" />
                           <div className="text-left">
                             <div>{slot.time}</div>
-                            <div className="text-xs text-gray-500">{professional?.name}</div>
+                            <div className="text-xs text-gray-500">{professional?.fullname}</div>
                           </div>
                         </Button>
                       );
@@ -606,7 +634,11 @@ const ClientReservation = () => {
                     <div className="text-sm space-y-2">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Servicio:</span>
-                        <span className="font-medium">{services.find(s => s.id === selectedService)?.name}</span>
+                        <span className="font-medium">
+                          {services.find(s => 
+                            (s.service_id?.toString() || s.id?.toString()) === selectedService
+                          )?.name}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Fecha:</span>
@@ -618,7 +650,9 @@ const ClientReservation = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Profesional:</span>
-                        <span className="font-medium">{professionals.find(p => p.id === selectedProfessional)?.name}</span>
+                        <span className="font-medium">
+                          {professionals.find(p => p.id.toString() === selectedProfessional)?.fullname}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -727,7 +761,11 @@ const ClientReservation = () => {
                 <div className="text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Servicio:</span>
-                    <span className="font-medium">{services.find(s => s.id === selectedService)?.name}</span>
+                    <span className="font-medium">
+                      {services.find(s => 
+                        (s.service_id?.toString() || s.id?.toString()) === selectedService
+                      )?.name}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Fecha:</span>
@@ -739,7 +777,9 @@ const ClientReservation = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Profesional:</span>
-                    <span className="font-medium">{professionals.find(p => p.id === selectedProfessional)?.name}</span>
+                    <span className="font-medium">
+                      {professionals.find(p => p.id.toString() === selectedProfessional)?.fullname}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -747,7 +787,7 @@ const ClientReservation = () => {
           </CardContent>
           <CardFooter>
             <Button onClick={resetAndGoHome} className="w-full">
-              Volver al inicio
+              {inDialog ? "Cerrar" : "Volver al inicio"}
             </Button>
           </CardFooter>
         </Card>
