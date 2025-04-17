@@ -1,15 +1,50 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+import { 
+  format, 
+  addDays, 
+  subDays, 
+  addWeeks, 
+  subWeeks, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  isToday, 
+  isSameDay, 
+  isSameMonth,
+  parse,
+  parseISO,
+  addMinutes
+} from "date-fns";
 import { es } from "date-fns/locale";
 import { 
+  Calendar as CalendarIcon, 
+  ChevronDown, 
+  ChevronLeft,
+  ChevronRight,
+  Clock, 
+  Filter, 
+  Scissors, 
+  User, 
   Phone,
   Mail,
-  User,
   CheckCircle2
 } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { 
   Form, 
   FormControl, 
@@ -19,10 +54,23 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Label } from "@/components/ui/label";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { Service, DailyAvailability, AvailableSlot, BusinessHours } from "@/types/service";
+import { Professional, Appointment } from "@/types/professional";
 
 const services: Service[] = [
   { id: 1, name: "Corte de pelo", duration: 30, price: 15 },
