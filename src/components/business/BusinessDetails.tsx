@@ -16,7 +16,7 @@ import { Link } from "react-router-dom";
 
 interface BusinessDetailsProps {
   business: BusinessDetail;
-  reservationPath: string;
+  reservationButton?: React.ReactNode;
 }
 
 // Helper function to format business hours nicely
@@ -46,7 +46,7 @@ const formatBusinessHours = (businessHours: BusinessDetail['business_hours']) =>
   });
 };
 
-export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, reservationPath }) => {
+export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, reservationButton }) => {
   const encodedAddress = encodeURIComponent(business.address);
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
 
@@ -77,11 +77,15 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm">Reservar es rápido y sencillo. Selecciona el servicio que necesitas y encuentra un horario que se adapte a tu agenda.</p>
-              <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-base py-6 mt-4 shadow-md transition-all hover:shadow-lg">
-                <Link to={reservationPath}>
-                  <Calendar className="mr-2 h-5 w-5" /> Reservar ahora
-                </Link>
-              </Button>
+              {reservationButton ? (
+                reservationButton
+              ) : (
+                <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-base py-6 mt-4 shadow-md transition-all hover:shadow-lg">
+                  <Link to="/reservation">
+                    <Calendar className="mr-2 h-5 w-5" /> Reservar ahora
+                  </Link>
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -186,11 +190,17 @@ export const BusinessDetails: React.FC<BusinessDetailsProps> = ({ business, rese
             </div>
           </CardContent>
           <CardFooter className="flex justify-center pt-4">
-            <Button asChild className="w-full md:w-1/2 lg:w-1/3 bg-blue-600 hover:bg-blue-700 text-base py-6">
-              <Link to={reservationPath}>
-                <Calendar className="mr-2 h-5 w-5" /> Reservar ahora
-              </Link>
-            </Button>
+            {reservationButton ? (
+              <div className="w-full md:w-1/2 lg:w-1/3">
+                {reservationButton}
+              </div>
+            ) : (
+              <Button asChild className="w-full md:w-1/2 lg:w-1/3 bg-blue-600 hover:bg-blue-700 text-base py-6">
+                <Link to="/reservation">
+                  <Calendar className="mr-2 h-5 w-5" /> Reservar ahora
+                </Link>
+              </Button>
+            )}
           </CardFooter>
         </Card>
       </div>

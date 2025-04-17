@@ -1,14 +1,14 @@
 
 export interface Service {
-  id: number;
-  service_id?: number; // Añadido para compatibilidad
+  id?: number;
+  service_id?: number;
   name: string;
   description?: string;
   duration: number;
   price: number;
   business_id?: string;
   is_active?: boolean;
-  professionals?: number[]; // Añadido para compatibilidad
+  professionals?: number[];
 }
 
 export interface BusinessHours {

@@ -65,8 +65,8 @@ const BusinessPage = () => {
             "7": []
           },
           services: [
-            { name: "Consulta general", duration: 30, price: 15.0 },
-            { name: "Alineado cervical", duration: 60, price: 100.0 }
+            { service_id: 1, name: "Consulta general", duration: 30, price: 15.0 },
+            { service_id: 2, name: "Alineado cervical", duration: 60, price: 100.0 }
           ]
         });
       } finally {
@@ -109,7 +109,7 @@ const BusinessPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-10">
       <div className="container mx-auto">
-        {/* Renderizar BusinessDetails pero reemplazar la acción del botón */}
+        {/* Renderizar BusinessDetails pero con botón de reserva personalizado */}
         <BusinessDetails 
           business={business} 
           reservationButton={

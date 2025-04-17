@@ -89,14 +89,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Service, DailyAvailability, AvailableSlot, Professional } from "@/types/service";
 import { BusinessDetail } from "@/types/booking";
 
-const services: Service[] = [
-  { id: 1, name: "Corte de pelo", duration: 30, price: 15 },
-  { id: 2, name: "Tinte", duration: 90, price: 40 },
-  { id: 3, name: "Manicura", duration: 45, price: 20 },
-  { id: 4, name: "Pedicura", duration: 45, price: 25 },
-  { id: 5, name: "Tratamiento facial", duration: 60, price: 35 },
-];
-
+// Definir profesionales de ejemplo
 const professionals: Professional[] = [
   {
     id: 1, 
@@ -198,7 +191,7 @@ export const ReservationDialog = ({ isOpen, onClose, business }: ReservationDial
   }, [selectedDate, availabilityData]);
 
   // Filtrar servicios basados en el negocio
-  const availableServices = business?.services || services;
+  const availableServices = business?.services || [];
 
   const handleSelectSlot = (slot: string) => {
     setSelectedSlot(slot);
@@ -326,10 +319,10 @@ export const ReservationDialog = ({ isOpen, onClose, business }: ReservationDial
               <div className="grid grid-cols-1 gap-4">
                 {availableServices.map((svc) => (
                   <Card 
-                    key={svc.id || svc.service_id} 
+                    key={svc.service_id || (svc as any).id || Math.random()} 
                     className={cn(
                       "cursor-pointer hover:shadow-md transition-all",
-                      service?.id === svc.id ? "border-2 border-primary" : ""
+                      service?.service_id === svc.service_id || (service as any)?.id === (svc as any).id ? "border-2 border-primary" : ""
                     )}
                     onClick={() => setService(svc)}
                   >
@@ -404,7 +397,9 @@ export const ReservationDialog = ({ isOpen, onClose, business }: ReservationDial
                       }
                     }}
                     modifiersClassNames={{
-                      available: (date) => getDayClass(date)
+                      available: (date) => {
+                        return getDayClass(date);
+                      }
                     }}
                     className="rounded-md border"
                   />
@@ -581,7 +576,7 @@ export const ReservationDialog = ({ isOpen, onClose, business }: ReservationDial
               render={({ slots }) => (
                 <div className="flex gap-2 justify-center">
                   {slots.map((slot, index) => (
-                    <InputOTPSlot key={index} {...slot} />
+                    <InputOTPSlot key={index} {...slot} index={index} />
                   ))}
                 </div>
               )}
