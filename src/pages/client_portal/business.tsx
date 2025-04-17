@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BusinessDetails } from "@/components/business/BusinessDetails";
@@ -10,12 +9,9 @@ import { ENDPOINTS } from "@/config/api";
 import { useAuth } from "@/stores/authContext";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-
-// Importar el componente de ClientReservation para usar su lógica
 import ClientReservation from "../demo/ClientReservation";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
-// Datos de ejemplo en caso de error o mientras se cargan
 const fallbackBusinessData: BusinessDetail = {
   name: "Cargando...",
   description: null,
@@ -42,7 +38,6 @@ const BusinessPage = () => {
         setLoading(true);
         setError(null);
         
-        // Decidir qué ID de negocio usar
         const id = businessId || currentBusiness?.business_id;
         
         if (!id) {
@@ -52,7 +47,6 @@ const BusinessPage = () => {
         const response = await axios.get(ENDPOINTS.BUSINESS_DETAIL(id));
         console.log("Business data loaded:", response.data);
         
-        // Asegurarnos que cada servicio tiene un service_id
         const businessData = {
           ...response.data,
           services: response.data.services.map((service: any, index: number) => ({
@@ -65,7 +59,6 @@ const BusinessPage = () => {
       } catch (err) {
         console.error("Error fetching business details:", err);
         setError("No se pudieron cargar los detalles del negocio");
-        // En caso de error, usar datos de ejemplo para demostración
         setBusiness({
           name: "Centro de Fisioterapia Vital",
           description: "Centro especializado en tratamientos de fisioterapia cervical y problemas posturales.",
@@ -126,7 +119,6 @@ const BusinessPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-10">
       <div className="container mx-auto">
-        {/* Renderizar BusinessDetails pero con botón de reserva personalizado */}
         <BusinessDetails 
           business={business} 
           reservationButton={
@@ -140,7 +132,6 @@ const BusinessPage = () => {
           } 
         />
         
-        {/* Usamos un Dialog con el contenido de ClientReservation */}
         <Dialog open={isReservationOpen} onOpenChange={setIsReservationOpen}>
           <DialogContent className="sm:max-w-[100%] md:max-w-[90%] lg:max-w-[80%] max-h-[90vh] overflow-y-auto">
             {isReservationOpen && (
@@ -148,6 +139,7 @@ const BusinessPage = () => {
                 inDialog={true} 
                 onComplete={handleCloseReservation}
                 businessData={business}
+                showConfirmationAsStep={false}
               />
             )}
           </DialogContent>
