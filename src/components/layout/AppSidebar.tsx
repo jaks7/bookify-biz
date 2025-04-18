@@ -140,7 +140,7 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
         )}
       >
         <div className="flex flex-col h-full">
-          <div className="flex items-center p-4 border-b border-gray-100">
+          <div className="flex items-center justify-center p-4 border-b border-gray-100 h-16">
             <Logo showText={!isCollapsed} />
           </div>
           
