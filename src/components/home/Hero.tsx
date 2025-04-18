@@ -1,10 +1,10 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
 import { AgendaPreview } from '@/components/home/AgendaPreview';
 import { CalendarPreview } from '@/components/home/CalendarPreview';
+import Logo from '@/components/shared/Logo';
 
 const Hero = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -50,6 +50,8 @@ const Hero = () => {
       
       <div className="container px-6 md:px-10 relative z-10">
         <div className="max-w-5xl mx-auto text-center">
+          <Logo className="justify-center mb-8" />
+          
           <div className="inline-block px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm shadow-sm mb-6 animate-fade-in">
             <span className="text-sm font-medium text-bookify-600">
               Mejora tu negocio con reservas sin complicaciones

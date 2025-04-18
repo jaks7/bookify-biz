@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
@@ -21,15 +20,14 @@ import { useAuth } from '@/stores/authContext';
 import { cn } from "@/lib/utils";
 import { useIsMobile } from '@/hooks/use-mobile';
 import "@/styles/sidebar.css";
+import Logo from '@/components/shared/Logo';
 
-// Define the side navigation component
 const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; toggleCollapse: () => void }) => {
   const { currentBusiness, availableBusinesses, switchBusiness } = useAuth();
   const location = useLocation();
   const [isBusinessListOpen, setIsBusinessListOpen] = useState(false);
   const isMobile = useIsMobile();
   
-  // Common navigation items
   const commonItems = [
     {
       title: "Cuadro de mando",
@@ -48,7 +46,6 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
     }
   ];
   
-  // Business-specific navigation items
   const businessItems = [
     {
       title: "Calendario",
@@ -92,7 +89,6 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
     }
   ];
   
-  // For demo routes - using the predefined paths for the demo
   const demoItems = [
     {
       title: "Dashboard",
@@ -121,10 +117,8 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
     }
   ];
   
-  // Determine if we're in demo mode based on the path
   const isDemoMode = location.pathname.startsWith('/demo');
   
-  // Mobile sidebar toggle button
   const MobileToggleButton = () => (
     <button
       className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white shadow-md"
@@ -146,17 +140,11 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Sidebar header with logo */}
           <div className="flex items-center p-4 border-b border-gray-100">
-            <Link to={isDemoMode ? "/demo/dashboard" : "/dashboard"} className="flex items-center">
-              <span className="text-xl font-bold text-horaLibre-500">Hora</span>
-              {!isCollapsed && <span className="ml-1 text-xl font-bold">Libre</span>}
-            </Link>
+            <Logo showText={!isCollapsed} />
           </div>
           
-          {/* Sidebar navigation */}
           <nav className="flex-1 px-3 py-4 overflow-y-auto">
-            {/* General section with label */}
             <div className="mb-6">
               {!isCollapsed && (
                 <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -184,20 +172,16 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
               </ul>
             </div>
             
-            {/* Section divider */}
             <div className="my-4 border-t border-gray-200"></div>
             
-            {/* Business section with label and business selector */}
             {!isDemoMode && (
               <div className="mb-6">
-                {/* Business section label */}
                 {!isCollapsed && (
                   <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Negocio Actual
                   </h3>
                 )}
                 
-                {/* Business selector */}
                 <div className="px-2 mb-4">
                   <button
                     className={cn(
@@ -222,7 +206,6 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
                     )}
                   </button>
                   
-                  {/* Dropdown for business selection */}
                   {isBusinessListOpen && !isCollapsed && availableBusinesses && availableBusinesses.length > 0 && (
                     <div className="mt-1 bg-white rounded-lg shadow-lg border border-gray-100 absolute z-30 w-[calc(100%-1.5rem)] max-w-[14rem]">
                       {availableBusinesses.map((business) => (
@@ -243,7 +226,6 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
                   )}
                 </div>
                 
-                {/* Business-specific navigation items */}
                 <ul className="space-y-2">
                   {businessItems.map((item) => (
                     <li key={item.path}>
@@ -266,7 +248,6 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
               </div>
             )}
             
-            {/* Demo mode items */}
             {isDemoMode && (
               <div>
                 <ul className="space-y-2">
@@ -292,7 +273,6 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
             )}
           </nav>
           
-          {/* Collapse button - only show on desktop */}
           <div className="md:block hidden">
             <SidebarCollapseButton isCollapsed={isCollapsed} toggleCollapse={toggleCollapse} />
           </div>
@@ -302,12 +282,10 @@ const AppSidebar = ({ isCollapsed, toggleCollapse }: { isCollapsed: boolean; tog
   );
 };
 
-// Define the AppSidebarWrapper component
 export const AppSidebarWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
 
-  // Set sidebar to collapsed by default on mobile
   useEffect(() => {
     if (isMobile) {
       setIsCollapsed(true);
@@ -335,5 +313,4 @@ export const AppSidebarWrapper: React.FC<{ children: React.ReactNode }> = ({ chi
   );
 };
 
-// Export the AppSidebar component as default
 export default AppSidebar;
