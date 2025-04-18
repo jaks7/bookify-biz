@@ -69,16 +69,18 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Service, DailyAvailability, AvailableSlot, BusinessHours } from "@/types/service";
+import { Service, DailyAvailability, AvailableSlot, BusinessHours, BusinessDetail } from "@/types/service";
 import { Professional, Appointment } from "@/types/professional";
 
-const services: Service[] = [
-  { id: 1, name: "Corte de pelo", duration: 30, price: 15 },
-  { id: 2, name: "Tinte", duration: 60, price: 35 },
-  { id: 3, name: "Manicura", duration: 45, price: 25 },
-  { id: 4, name: "Pedicura", duration: 45, price: 25 },
-  { id: 5, name: "Masaje facial", duration: 30, price: 20 },
-];
+// Definir el esquema del formulario
+const clientFormSchema = z.object({
+  phone: z.string().min(9, "El número de teléfono debe tener al menos 9 dígitos"),
+  name: z.string().optional(),
+  email: z.string().email("El email debe ser válido").optional()
+});
+
+// Definir el tipo basado en el esquema
+type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 const professionals: Professional[] = [
   {
@@ -211,40 +213,17 @@ const generateMonthAvailability = (availabilityData: DailyAvailability[], month:
   }, {} as Record<string, number>);
 };
 
-const findFirstAvailableSlot = (serviceId: number, availabilityData: DailyAvailability[]) => {
-  const service = services.find(s => s.id === serviceId);
-  if (!service) return null;
-  
-  for (let i = 0; i < 14; i++) {
-    const day = addDays(new Date(), i);
-    const dateStr = format(day, 'yyyy-MM-dd');
-    
-    const dayAvailability = availabilityData.find(d => d.date === dateStr);
-    if (dayAvailability && dayAvailability.available_slots.length > 0) {
-      const timeSlots = generateTimeSlots(dayAvailability.available_slots, service.duration);
-      
-      if (timeSlots.length > 0) {
-        return {
-          date: day,
-          time: timeSlots[0],
-          professional: "Primer disponible"
-        };
-      }
-    }
-  }
-  
-  return null;
-};
-
-const clientFormSchema = z.object({
-  phone: z.string().min(9, "El número de teléfono debe tener al menos 9 dígitos"),
-  name: z.string().optional(),
-  email: z.string().email("El email debe ser válido").optional()
-});
-
-type ClientFormValues = z.infer<typeof clientFormSchema>;
-
-const ClientReservation = () => {
+const ClientReservation = ({ 
+  businessData, 
+  inDialog = false,
+  onComplete,
+  showConfirmationAsStep = true
+}: { 
+  businessData: BusinessDetail;
+  inDialog?: boolean;
+  onComplete?: (formData: any) => void;
+  showConfirmationAsStep?: boolean;
+}) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -281,13 +260,38 @@ const ClientReservation = () => {
     end: endOfWeek(currentWeek, { weekStartsOn: 1 })
   });
 
+  const findFirstAvailableSlot = (serviceId: number, availabilityData: DailyAvailability[]) => {
+    const service = businessData.services.find(s => s.service_id === serviceId);
+    if (!service) return null;
+    
+    for (let i = 0; i < 14; i++) {
+      const day = addDays(new Date(), i);
+      const dateStr = format(day, 'yyyy-MM-dd');
+      
+      const dayAvailability = availabilityData.find(d => d.date === dateStr);
+      if (dayAvailability && dayAvailability.available_slots.length > 0) {
+        const timeSlots = generateTimeSlots(dayAvailability.available_slots, service.duration);
+        
+        if (timeSlots.length > 0) {
+          return {
+            date: day,
+            time: timeSlots[0],
+            professional: "Primer disponible"
+          };
+        }
+      }
+    }
+    
+    return null;
+  };
+
   useEffect(() => {
     const slots: Record<number, {date: Date, time: string, professional: string} | null> = {};
-    services.forEach(service => {
-      slots[service.id] = findFirstAvailableSlot(service.id, mockAvailabilityData);
+    businessData.services.forEach(service => {
+      slots[service.service_id] = findFirstAvailableSlot(service.service_id, mockAvailabilityData);
     });
     setFirstAvailableSlots(slots);
-  }, []);
+  }, [businessData.services]);
 
   useEffect(() => {
     const firstDay = weekDays[0];
@@ -309,7 +313,7 @@ const ClientReservation = () => {
 
   useEffect(() => {
     if (selectedService && selectedDate) {
-      const service = services.find(s => s.id === selectedService);
+      const service = businessData.services.find(s => s.service_id === selectedService);
       if (service) {
         const dayAvailability = findAvailabilityForDate(selectedDate, mockAvailabilityData);
         if (dayAvailability) {
@@ -320,7 +324,7 @@ const ClientReservation = () => {
         }
       }
     }
-  }, [selectedDate, selectedService]);
+  }, [selectedDate, selectedService, businessData.services]);
 
   const handlePrevWeek = () => {
     setCurrentWeek(subWeeks(currentWeek, 1));
@@ -500,17 +504,17 @@ const ClientReservation = () => {
             <CardTitle>Selecciona un servicio</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {services.map(service => {
-              const firstSlot = firstAvailableSlots[service.id];
+            {businessData.services.map(service => {
+
               
               return (
                 <Card 
-                  key={service.id} 
+                  key={service.service_id} 
                   className={cn(
                     "cursor-pointer hover:bg-gray-50 transition-colors",
-                    selectedService === service.id && "ring-2 ring-emerald-500"
+                    selectedService === service.service_id && "ring-2 ring-emerald-500"
                   )}
-                  onClick={() => handleServiceSelect(service.id)}
+                  onClick={() => handleServiceSelect(service.service_id)}
                 >
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-2">
@@ -526,13 +530,6 @@ const ClientReservation = () => {
                         <span>{service.price} €</span>
                       </div>
                       
-                      {firstSlot && (
-                        <div className="mt-2 text-xs border-t pt-2">
-                          <p className="font-medium text-emerald-600">Primera cita disponible:</p>
-                          <p>{format(firstSlot.date, "EEEE d 'de' MMMM", { locale: es })}</p>
-                          <p>{firstSlot.time}</p>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -617,7 +614,7 @@ const ClientReservation = () => {
                       locale={es}
                       className="pointer-events-auto"
                       classNames={{
-                        day: (date) => getDayAvailabilityClass(date)
+                        day: getDayAvailabilityClass as unknown as string
                       }}
                     />
                   </PopoverContent>
@@ -683,7 +680,9 @@ const ClientReservation = () => {
                     <div className="text-sm space-y-2">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Servicio:</span>
-                        <span className="font-medium">{services.find(s => s.id === selectedService)?.name}</span>
+                        <span className="font-medium">
+                          {businessData.services.find(s => s.service_id === selectedService)?.name}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Fecha:</span>
@@ -865,7 +864,9 @@ const ClientReservation = () => {
                 <div className="text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Servicio:</span>
-                    <span className="font-medium">{services.find(s => s.id === selectedService)?.name}</span>
+                    <span className="font-medium">
+                      {businessData.services.find(s => s.service_id === selectedService)?.name}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Fecha:</span>

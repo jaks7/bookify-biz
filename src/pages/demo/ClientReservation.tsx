@@ -413,13 +413,7 @@ const ClientReservation: React.FC<ClientReservationProps> = ({
                         <span>{service.price} €</span>
                       </div>
                       
-                      {firstSlot && (
-                        <div className="mt-2 text-xs border-t pt-2">
-                          <p className="font-medium text-emerald-600">Primera cita disponible:</p>
-                          <p>{format(firstSlot.date, "EEEE d 'de' MMMM", { locale: es })}</p>
-                          <p>{firstSlot.time} ({firstSlot.professional})</p>
-                        </div>
-                      )}
+
                     </div>
                   </CardContent>
                 </Card>

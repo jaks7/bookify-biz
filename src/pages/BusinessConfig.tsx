@@ -66,11 +66,11 @@ const BusinessConfig = () => {
 
   const [business, setBusiness] = useState({
     business_id: "",  // Inicializamos vacío
-    name: "",
+      name: "",
     address: "",
     city: "",
-    postal_code: "",
-    cif: "",
+      postal_code: "",
+      cif: "",
     type_of_business: "otros",
   });
   
@@ -258,10 +258,10 @@ const BusinessConfig = () => {
       );
 
       if (businessSuccess && configSuccess) {
-        toast({
+      toast({
           title: "Éxito",
-          description: "Los cambios se han guardado correctamente",
-        });
+        description: "Los cambios se han guardado correctamente",
+      });
       }
     } catch (error) {
       console.error("Error saving:", error);
@@ -304,26 +304,26 @@ const BusinessConfig = () => {
             <p className="text-muted-foreground mt-1">
               Configuración del negocio
             </p>
-          </div>
-          
-          <Tabs defaultValue="basic" className="w-full">
+        </div>
+
+              <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full md:w-[600px] grid-cols-3">
-              <TabsTrigger value="basic">Información Básica</TabsTrigger>
+                  <TabsTrigger value="basic">Información Básica</TabsTrigger>
               <TabsTrigger value="schedule">Horarios Comerciales</TabsTrigger>
-              <TabsTrigger value="advanced">Configuración Avanzada</TabsTrigger>
-            </TabsList>
-            
+                  <TabsTrigger value="advanced">Configuración Avanzada</TabsTrigger>
+                </TabsList>
+                
             {/* Pestaña de Información Básica */}
-            <TabsContent value="basic" className="space-y-6 mt-6">
+                <TabsContent value="basic" className="space-y-6 mt-6">
               {/* Información básica del negocio */}
-              <Card>
-                <CardHeader>
+                  <Card>
+                    <CardHeader>
                   <CardTitle>Datos del negocio</CardTitle>
-                  <CardDescription>
+                      <CardDescription>
                     Información básica de tu negocio
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Nombre del negocio</Label>
@@ -340,17 +340,17 @@ const BusinessConfig = () => {
                         value={business.type_of_business}
                         onValueChange={(value) => handleBusinessChange('type_of_business', value)}
                       >
-                        <SelectTrigger>
+                                <SelectTrigger>
                           <SelectValue placeholder="Selecciona un tipo de negocio" />
-                        </SelectTrigger>
-                        <SelectContent>
+                                </SelectTrigger>
+                              <SelectContent>
                           {businessTypes.map((type) => (
                             <SelectItem key={type.value} value={type.value}>
                               {type.label}
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                                ))}
+                              </SelectContent>
+                            </Select>
                     </div>
                   </div>
                   
@@ -519,26 +519,26 @@ const BusinessConfig = () => {
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
             {/* Pestaña de Configuración Avanzada */}
-            <TabsContent value="advanced" className="space-y-6 mt-6">
-              <Card>
-                <CardHeader>
+                <TabsContent value="advanced" className="space-y-6 mt-6">
+                  <Card>
+                    <CardHeader>
                   <CardTitle>Configuración de reservas</CardTitle>
-                  <CardDescription>
+                      <CardDescription>
                     Opciones para gestionar cómo funcionan las reservas
-                  </CardDescription>
-                </CardHeader>
+                      </CardDescription>
+                    </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="days_advance">Días de antelación para reservar</Label>
-                      <Input 
+                              <Input 
                         id="days_advance" 
-                        type="number"
+                                type="number" 
                         value={configData.days_advance_booking}
                         onChange={(e) => handleConfigChange('days_advance_booking', parseInt(e.target.value))}
                       />
@@ -549,9 +549,9 @@ const BusinessConfig = () => {
                     
                     <div className="space-y-2">
                       <Label htmlFor="cancel_hours">Horas de antelación para cancelar</Label>
-                      <Input 
+                              <Input 
                         id="cancel_hours" 
-                        type="number"
+                                type="number" 
                         value={configData.time_advance_cancel_reschedule}
                         onChange={(e) => handleConfigChange('time_advance_cancel_reschedule', parseInt(e.target.value))}
                       />
@@ -560,9 +560,9 @@ const BusinessConfig = () => {
                       </p>
                     </div>
                   </div>
-                  
-                  <Separator className="my-4" />
-                  
+                      
+                      <Separator className="my-4" />
+                      
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
@@ -592,26 +592,26 @@ const BusinessConfig = () => {
                       />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader>
                   <CardTitle>Visibilidad y opciones</CardTitle>
-                  <CardDescription>
+                      <CardDescription>
                     Configura cómo aparece tu negocio online
-                  </CardDescription>
-                </CardHeader>
+                      </CardDescription>
+                    </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
+                            <div className="space-y-0.5">
                         <Label htmlFor="public_list_business">Mostrar negocio públicamente</Label>
                         <p className="text-xs text-muted-foreground">
                           Mostrar tu negocio en el directorio público
                         </p>
-                      </div>
-                      <Switch
+                            </div>
+                              <Switch
                         id="public_list_business"
                         checked={configData.public_list_business}
                         onCheckedChange={(checked) => handleConfigChange('public_list_business', checked)}
@@ -619,13 +619,13 @@ const BusinessConfig = () => {
                     </div>
                     
                     <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
+                            <div className="space-y-0.5">
                         <Label htmlFor="public_list_services">Mostrar servicios públicamente</Label>
                         <p className="text-xs text-muted-foreground">
                           Mostrar los servicios en el directorio público
                         </p>
-                      </div>
-                      <Switch
+                            </div>
+                              <Switch
                         id="public_list_services"
                         checked={configData.public_list_services}
                         onCheckedChange={(checked) => handleConfigChange('public_list_services', checked)}
@@ -635,13 +635,13 @@ const BusinessConfig = () => {
                     <Separator className="my-2" />
                     
                     <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
+                            <div className="space-y-0.5">
                         <Label htmlFor="allow_choose_professional">Permitir elegir profesional</Label>
                         <p className="text-xs text-muted-foreground">
                           Permitir que los clientes elijan un profesional específico
                         </p>
-                      </div>
-                      <Switch
+                            </div>
+                              <Switch
                         id="allow_choose_professional"
                         checked={configData.allow_choose_professional}
                         onCheckedChange={(checked) => handleConfigChange('allow_choose_professional', checked)}
@@ -649,32 +649,32 @@ const BusinessConfig = () => {
                     </div>
                     
                     <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
+                            <div className="space-y-0.5">
                         <Label htmlFor="professional_schedule">Habilitar horarios por profesional</Label>
                         <p className="text-xs text-muted-foreground">
                           Permitir que cada profesional tenga su propio horario
                         </p>
-                      </div>
-                      <Switch
+                            </div>
+                              <Switch
                         id="professional_schedule"
                         checked={configData.professional_schedule_enabled}
                         onCheckedChange={(checked) => handleConfigChange('professional_schedule_enabled', checked)}
                       />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-          
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+              
           <div className="flex justify-end mt-6 space-x-2">
             <Button 
               onClick={handleSave}
               disabled={isSaving || loading}
             >
               {isSaving ? "Guardando..." : "Guardar cambios"}
-            </Button>
-          </div>
+                </Button>
+              </div>
         </div>
       </div>
     </AppSidebarWrapper>

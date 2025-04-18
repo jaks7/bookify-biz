@@ -1,4 +1,3 @@
-
 export interface Service {
   id?: number;
   service_id?: number;
@@ -45,4 +44,13 @@ export interface Appointment {
   duration: number;
   clientName: string;
   service: string;
+}
+
+export interface BusinessDetail {
+  name: string;
+  description: string | null;
+  address: string;
+  phone: string | null;
+  business_hours: Record<string, BusinessHours[]>;
+  services: Service[];
 }
