@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BusinessDetails } from "@/components/business/BusinessDetails";
@@ -6,11 +5,9 @@ import { BusinessDetail, BookingRequest } from "@/types/booking";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
-import { ENDPOINTS } from "@/config/api";
-import { useAuth } from "@/stores/authContext";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import ClientReservation from "../demo/ClientReservation";
+import ClientReservation from "../ClientReservation";
 import { 
   Dialog, 
   DialogContent,
@@ -41,62 +38,41 @@ const BusinessPage = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [lastBooking, setLastBooking] = useState<BookingRequest | null>(null);
   const { businessId } = useParams<{ businessId: string }>();
-  const { currentBusiness } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchBusinessDetails = async () => {
+      if (!businessId) {
+        setError("ID del negocio no proporcionado en la URL.");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
         
-        const id = businessId || currentBusiness?.business_id;
+        const apiUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/client_portal/${businessId}/`;
         
-        if (!id) {
-          throw new Error("No se encontró ID del negocio");
-        }
-        
-        const response = await axios.get(ENDPOINTS.BUSINESS_DETAIL(id));
+        const response = await axios.get(apiUrl); 
         console.log("Business data loaded:", response.data);
         
-        const businessData = {
-          ...response.data,
-          services: response.data.services.map((service: any, index: number) => ({
-            ...service,
-            service_id: service.service_id || index + 1
-          }))
-        };
-        
-        setBusiness(businessData);
+        setBusiness(response.data);
+
       } catch (err) {
         console.error("Error fetching business details:", err);
-        setError("No se pudieron cargar los detalles del negocio");
-        setBusiness({
-          name: "Centro de Fisioterapia Vital",
-          description: "Centro especializado en tratamientos de fisioterapia cervical y problemas posturales.",
-          address: "C Cristobal Colon 5, Castellon, 12002",
-          phone: "964 123 456",
-          business_hours: {
-            "1": [{ start: "09:00", end: "17:00" }],
-            "2": [{ start: "09:00", end: "17:00" }],
-            "3": [{ start: "09:00", end: "17:00" }],
-            "4": [{ start: "09:00", end: "17:00" }],
-            "5": [{ start: "09:00", end: "17:00" }],
-            "6": [{ start: "09:00", end: "14:00" }],
-            "7": []
-          },
-          services: [
-            { service_id: 1, name: "Consulta general", duration: 30, price: 15.0 },
-            { service_id: 2, name: "Alineado cervical", duration: 60, price: 100.0 }
-          ]
-        });
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          setError("El negocio no fue encontrado o no está disponible públicamente.");
+        } else {
+          setError("No se pudieron cargar los detalles del negocio. Inténtalo de nuevo más tarde.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchBusinessDetails();
-  }, [businessId, currentBusiness?.business_id]);
+  }, [businessId]);
 
   const handleReservationComplete = (formData: any) => {
     const bookingRequest: BookingRequest = {
@@ -111,10 +87,8 @@ const BusinessPage = () => {
 
     setLastBooking(bookingRequest);
     
-    // Close the reservation dialog
     setIsReservationOpen(false);
     
-    // Open the confirmation dialog immediately
     setShowConfirmation(true);
     
     toast.success("Reserva creada con éxito");
@@ -162,13 +136,11 @@ const BusinessPage = () => {
           } 
         />
         
-        {/* Reservation Dialog */}
         <Dialog 
           open={isReservationOpen} 
           onOpenChange={(open) => {
             setIsReservationOpen(open);
             if (!open) {
-              // Reset any form state if needed when dialog is closed
             }
           }}
         >
@@ -184,7 +156,6 @@ const BusinessPage = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Confirmation Dialog - Shown separately after the reservation is completed */}
         <Dialog open={showConfirmation} onOpenChange={handleCloseConfirmation}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
