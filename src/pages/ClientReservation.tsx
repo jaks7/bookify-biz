@@ -165,6 +165,16 @@ interface DailyAvailability {
   percentage?: number;
 }
 
+interface ReservationState {
+  service_id?: number;
+  professional_id?: number;
+  start_datetime?: string;
+  end_datetime?: string;
+  phone?: string;
+  name?: string;
+  email?: string;
+}
+
 interface ClientReservationProps {
   businessData: BusinessDetail;
   inDialog?: boolean;
@@ -189,7 +199,7 @@ const ClientReservation = ({
   );
   const [availabilityData, setAvailabilityData] = useState<DailyAvailability[]>(initialAvailability);
   const [dayPeriod, setDayPeriod] = useState<string>("all");
-  const [selectedService, setSelectedService] = useState<number | null>(null);
+  const [reservationData, setReservationData] = useState<ReservationState>({});
   const [selectedSlot, setSelectedSlot] = useState<string>("");
   const [selectedProfessional, setSelectedProfessional] = useState<number | null>(null);
   const [step, setStep] = useState<number>(1);
@@ -247,167 +257,35 @@ const ClientReservation = ({
     setFirstAvailableSlots(slots);
   }, [businessData.services, availabilityData]);
 
-  useEffect(() => {
-    const loadAvailability = async () => {
-      if (!selectedService || !businessData?.business_id) {
-        console.log("No service selected or no business ID:", { selectedService, businessId: businessData?.business_id });
-        return;
-      }
-
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      if (availabilityData.some(day => day.date === selectedDateStr)) {
-        console.log("Using cached availability data for:", selectedDateStr);
-        return;
-      }
-
-      try {
-        const startDate = format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-        const endDate = format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-        
-        console.log("Fetching availability:", {
-          businessId: businessData.business_id,
-          startDate,
-          endDate,
-          selectedService
-        });
-
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
-        const response = await axios.get(
-          `${apiBaseUrl}/client_portal/${businessData.business_id}/available-slots/`,
-          {
-            params: {
-              start_date: startDate,
-              end_date: endDate,
-              service_id: selectedService
-            }
-          }
-        );
-
-        console.log("API Response:", response.data);
-
-        const processedData = response.data.map((day: DailyAvailability) => {
-          let totalAvailableMinutes = 0;
-          let totalBusinessMinutes = 0;
-
-          day.available_slots.forEach(slot => {
-            const startTime = parseISO(`2023-01-01T${slot.start}`);
-            const endTime = parseISO(`2023-01-01T${slot.end}`);
-            totalAvailableMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
-          });
-
-          day.business_hours.forEach(hours => {
-            const startTime = parseISO(`2023-01-01T${hours.start}`);
-            const endTime = parseISO(`2023-01-01T${hours.end}`);
-            totalBusinessMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
-          });
-
-          return {
-            ...day,
-            percentage: totalBusinessMinutes > 0 
-              ? Math.floor((totalAvailableMinutes / totalBusinessMinutes) * 100) 
-              : 0
-          };
-        });
-
-        setAvailabilityData(processedData);
-
-      } catch (error) {
-        console.error("Error loading availability:", error);
-        toast({
-          title: "Error al cargar disponibilidad",
-          description: "No se pudo cargar la disponibilidad. Por favor, intenta de nuevo.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    if (selectedService && businessData?.business_id) {
-      loadAvailability();
-    }
-  }, [selectedService, selectedDate, businessData?.business_id, toast, availabilityData]);
-
-  useEffect(() => {
-    const firstDay = weekDays[0];
-    const lastDay = weekDays[weekDays.length - 1];
+  const handleServiceSelect = (service: Service) => {
+    console.log("Service selected:", service);
+    const serviceId = service.service_id || service.id;
     
-    if (!isSameMonth(firstDay, new Date(currentMonthDisplay)) || 
-        !isSameMonth(lastDay, new Date(currentMonthDisplay))) {
-      const daysInCurrentMonth = weekDays.filter(day => 
-        format(day, 'MMMM yyyy', { locale: es }) === currentMonthDisplay
-      ).length;
-      
-      const daysInNewMonth = weekDays.length - daysInCurrentMonth;
-      
-      if (daysInNewMonth > daysInCurrentMonth) {
-        setCurrentMonthDisplay(format(daysInNewMonth > 3 ? lastDay : firstDay, 'MMMM yyyy', { locale: es }));
-      }
+    if (!serviceId) {
+      console.error("Service ID is missing:", service);
+      toast({
+        title: "Error",
+        description: "No se pudo seleccionar el servicio. Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      });
+      return;
     }
-  }, [currentWeek, weekDays, currentMonthDisplay]);
 
-  useEffect(() => {
-    if (selectedService && selectedDate) {
-      const service = businessData.services.find(s => s.service_id === selectedService);
-      if (service) {
-        const dayAvailability = findAvailabilityForDate(selectedDate, availabilityData);
-        if (dayAvailability) {
-          const slots = generateTimeSlots(dayAvailability.available_slots, service.duration);
-          setDailySlots(slots);
-        } else {
-          setDailySlots([]);
-        }
-      }
-    }
-  }, [selectedDate, selectedService, businessData.services, availabilityData]);
-
-  const handlePrevWeek = () => {
-    setCurrentWeek(subWeeks(currentWeek, 1));
-  };
-
-  const handleNextWeek = () => {
-    setCurrentWeek(addWeeks(currentWeek, 1));
-  };
-
-  const getFilteredSlots = () => {
-    return dailySlots.filter(timeSlot => {
-      const hour = parseInt(timeSlot.split(':')[0]);
-      if (dayPeriod === "morning" && hour < 14) return true;
-      if (dayPeriod === "afternoon" && hour >= 14) return true;
-      if (dayPeriod === "all") return true;
-      return false;
+    setReservationData(prev => {
+      const newData = {
+        ...prev,
+        service_id: serviceId
+      };
+      console.log("Updated reservation data:", newData);
+      return newData;
     });
-  };
 
-  const filteredSlots = getFilteredSlots();
-
-  const getDayAvailabilityClass = (day: Date) => {
-    const dateStr = format(day, 'yyyy-MM-dd');
-    const availability = availabilityData.find(d => d.date === dateStr)?.percentage || 0;
-    
-    if (availability === 0) return "bg-gray-200 text-gray-700";
-    if (availability < 25) return "bg-rose-400 text-white hover:bg-rose-500";
-    if (availability < 50) return "bg-amber-400 text-white hover:bg-amber-500";
-    return "bg-emerald-400 text-white hover:bg-emerald-500";
-  };
-
-  const getWeekDayAvailabilityColor = (day: Date) => {
-    const dateStr = format(day, 'yyyy-MM-dd');
-    const availability = availabilityData.find(d => d.date === dateStr)?.percentage || 0;
-    
-    if (availability === 0) return "bg-gray-200";
-    if (availability < 25) return "bg-yellow-400";
-    if (availability < 50) return "bg-green-400";
-    return "bg-green-600";
-  };
-
-  const handleServiceSelect = (serviceId: number) => {
-    console.log("Service selected:", serviceId);
-    setSelectedService(serviceId);
     setSelectedDate(new Date());
     setSelectedSlot("");
-    
-    // Cargar la disponibilidad inmediatamente al seleccionar el servicio
-    const startDate = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-    const endDate = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    setStep(2);
+
+    const startDate = format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const endDate = format(endOfWeek(currentWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd');
     
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
     axios.get(
@@ -420,7 +298,6 @@ const ClientReservation = ({
         }
       }
     ).then(response => {
-      console.log("Initial availability loaded for service:", response.data);
       const processedData = response.data.map((day: DailyAvailability) => {
         let totalAvailableMinutes = 0;
         let totalBusinessMinutes = 0;
@@ -454,8 +331,83 @@ const ClientReservation = ({
         variant: "destructive",
       });
     });
+  };
 
-    setStep(2);
+  const handlePrevWeek = () => {
+    const newWeek = subWeeks(currentWeek, 1);
+    setCurrentWeek(newWeek);
+    loadWeekAvailability(newWeek);
+  };
+
+  const handleNextWeek = () => {
+    const newWeek = addWeeks(currentWeek, 1);
+    setCurrentWeek(newWeek);
+    loadWeekAvailability(newWeek);
+  };
+
+  useEffect(() => {
+    const firstDay = weekDays[0];
+    const lastDay = weekDays[weekDays.length - 1];
+    
+    if (!isSameMonth(firstDay, new Date(currentMonthDisplay)) || 
+        !isSameMonth(lastDay, new Date(currentMonthDisplay))) {
+      const daysInCurrentMonth = weekDays.filter(day => 
+        format(day, 'MMMM yyyy', { locale: es }) === currentMonthDisplay
+      ).length;
+      
+      const daysInNewMonth = weekDays.length - daysInCurrentMonth;
+      
+      if (daysInNewMonth > daysInCurrentMonth) {
+        setCurrentMonthDisplay(format(daysInNewMonth > 3 ? lastDay : firstDay, 'MMMM yyyy', { locale: es }));
+      }
+    }
+  }, [currentWeek, weekDays, currentMonthDisplay]);
+
+  useEffect(() => {
+    if (reservationData.service_id && selectedDate) {
+      const service = businessData.services.find(s => s.service_id === reservationData.service_id);
+      if (service) {
+        const dayAvailability = findAvailabilityForDate(selectedDate, availabilityData);
+        if (dayAvailability) {
+          const slots = generateTimeSlots(dayAvailability.available_slots, service.duration);
+          setDailySlots(slots);
+        } else {
+          setDailySlots([]);
+        }
+      }
+    }
+  }, [selectedDate, reservationData.service_id, businessData.services, availabilityData]);
+
+  const getFilteredSlots = () => {
+    return dailySlots.filter(timeSlot => {
+      const hour = parseInt(timeSlot.split(':')[0]);
+      if (dayPeriod === "morning" && hour < 14) return true;
+      if (dayPeriod === "afternoon" && hour >= 14) return true;
+      if (dayPeriod === "all") return true;
+      return false;
+    });
+  };
+
+  const filteredSlots = getFilteredSlots();
+
+  const getDayAvailabilityClass = (day: Date) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const availability = availabilityData.find(d => d.date === dateStr)?.percentage || 0;
+    
+    if (availability === 0) return "bg-gray-200 text-gray-700";
+    if (availability < 25) return "bg-rose-400 text-white hover:bg-rose-500";
+    if (availability < 50) return "bg-amber-400 text-white hover:bg-amber-500";
+    return "bg-emerald-400 text-white hover:bg-emerald-500";
+  };
+
+  const getWeekDayAvailabilityColor = (day: Date) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const availability = availabilityData.find(d => d.date === dateStr)?.percentage || 0;
+    
+    if (availability === 0) return "bg-gray-200";
+    if (availability < 25) return "bg-yellow-400";
+    if (availability < 50) return "bg-green-400";
+    return "bg-green-600";
   };
 
   const handleWeekDaySelect = (day: Date) => {
@@ -463,12 +415,37 @@ const ClientReservation = ({
   };
 
   const handleSlotSelect = (time: string, professionalId: number | null = null) => {
+    const selectedDateTime = new Date(selectedDate);
+    const [hours, minutes] = time.split(':');
+    selectedDateTime.setHours(parseInt(hours), parseInt(minutes));
+
+    const service = businessData.services.find(s => s.service_id === reservationData.service_id);
+    const endDateTime = new Date(selectedDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + (service?.duration || 0));
+
+    setReservationData(prev => ({
+      ...prev,
+      start_datetime: selectedDateTime.toISOString(),
+      end_datetime: endDateTime.toISOString(),
+      professional_id: professionalId || undefined
+    }));
+
     setSelectedSlot(time);
-    setSelectedProfessional(professionalId);
     setStep(3);
   };
 
   const onClientFormSubmit = (data: ClientFormValues) => {
+    setReservationData(prev => ({
+      ...prev,
+      phone: data.phone,
+      name: data.name,
+      email: data.email
+    }));
+
+    if (onComplete) {
+      onComplete(reservationData);
+    }
+
     const clientExists = Math.random() > 0.5;
     setIsNewClient(!clientExists);
     
@@ -558,6 +535,77 @@ const ClientReservation = ({
     }
   };
 
+  const loadWeekAvailability = async (week: Date) => {
+    if (!reservationData.service_id || !businessData?.business_id) {
+      console.log("No service selected or no business ID:", { 
+        selectedService: reservationData.service_id, 
+        businessId: businessData?.business_id 
+      });
+      return;
+    }
+
+    try {
+      const startDate = format(startOfWeek(week, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      const endDate = format(endOfWeek(week, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      
+      console.log("Fetching availability for week:", {
+        startDate,
+        endDate,
+        selectedService: reservationData.service_id,
+        businessId: businessData.business_id
+      });
+
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+      const response = await axios.get(
+        `${apiBaseUrl}/client_portal/${businessData.business_id}/available-slots/`,
+        {
+          params: {
+            start_date: startDate,
+            end_date: endDate,
+            service_id: reservationData.service_id
+          }
+        }
+      );
+
+      const processedData = response.data.map((day: DailyAvailability) => {
+        let totalAvailableMinutes = 0;
+        let totalBusinessMinutes = 0;
+
+        day.available_slots.forEach(slot => {
+          const startTime = parseISO(`2023-01-01T${slot.start}`);
+          const endTime = parseISO(`2023-01-01T${slot.end}`);
+          totalAvailableMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+        });
+
+        day.business_hours.forEach(hours => {
+          const startTime = parseISO(`2023-01-01T${hours.start}`);
+          const endTime = parseISO(`2023-01-01T${hours.end}`);
+          totalBusinessMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+        });
+
+        return {
+          ...day,
+          percentage: totalBusinessMinutes > 0 
+            ? Math.floor((totalAvailableMinutes / totalBusinessMinutes) * 100) 
+            : 0
+        };
+      });
+
+      setAvailabilityData(processedData);
+    } catch (error) {
+      console.error("Error loading availability:", error);
+      toast({
+        title: "Error al cargar disponibilidad",
+        description: "No se pudo cargar la disponibilidad. Por favor, intenta de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadWeekAvailability(currentWeek);
+  }, [currentWeek, reservationData.service_id, businessData?.business_id]);
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">Reserva tu cita</h1>
@@ -596,11 +644,11 @@ const ClientReservation = ({
                 key={service.service_id || `service-${index}`}
                 className={cn(
                   "cursor-pointer hover:bg-gray-50 transition-colors",
-                  selectedService === service.service_id && "ring-2 ring-emerald-500"
+                  reservationData.service_id === (service.service_id || service.id) && "ring-2 ring-emerald-500"
                 )}
                 onClick={() => {
                   console.log("Clicking service:", service);
-                  handleServiceSelect(service.service_id);
+                  handleServiceSelect(service);
                 }}
               >
                 <CardContent className="p-4">
@@ -766,7 +814,7 @@ const ClientReservation = ({
                       <div className="flex justify-between">
                         <span className="text-gray-500">Servicio:</span>
                         <span className="font-medium">
-                          {businessData.services.find(s => s.service_id === selectedService)?.name}
+                          {businessData.services.find(s => s.service_id === reservationData.service_id)?.name}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -777,11 +825,11 @@ const ClientReservation = ({
                         <span className="text-gray-500">Hora:</span>
                         <span className="font-medium">{selectedSlot}</span>
                       </div>
-                      {selectedProfessional && (
+                      {reservationData.professional_id && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Profesional:</span>
                           <span className="font-medium">
-                            {professionals.find(p => p.id === selectedProfessional)?.fullname}
+                            {professionals.find(p => p.id === reservationData.professional_id)?.fullname}
                           </span>
                         </div>
                       )}
@@ -950,7 +998,7 @@ const ClientReservation = ({
                   <div className="flex justify-between">
                     <span className="text-gray-500">Servicio:</span>
                     <span className="font-medium">
-                      {businessData.services.find(s => s.service_id === selectedService)?.name}
+                      {businessData.services.find(s => s.service_id === reservationData.service_id)?.name}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -961,11 +1009,11 @@ const ClientReservation = ({
                     <span className="text-gray-500">Hora:</span>
                     <span className="font-medium">{selectedSlot}</span>
                   </div>
-                  {selectedProfessional && (
+                  {reservationData.professional_id && (
                     <div className="flex justify-between">
                       <span className="text-gray-500">Profesional:</span>
                       <span className="font-medium">
-                        {professionals.find(p => p.id === selectedProfessional)?.fullname}
+                        {professionals.find(p => p.id === reservationData.professional_id)?.fullname}
                       </span>
                     </div>
                   )}
