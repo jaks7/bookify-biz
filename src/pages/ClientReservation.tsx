@@ -165,17 +165,21 @@ interface DailyAvailability {
   percentage?: number;
 }
 
-const ClientReservation = ({ 
-  businessData, 
-  inDialog = false,
-  onComplete,
-  showConfirmationAsStep = true
-}: { 
+interface ClientReservationProps {
   businessData: BusinessDetail;
   inDialog?: boolean;
   onComplete?: (formData: any) => void;
   showConfirmationAsStep?: boolean;
-}) => {
+  initialAvailability?: DailyAvailability[];
+}
+
+const ClientReservation = ({ 
+  businessData, 
+  inDialog = false,
+  onComplete,
+  showConfirmationAsStep = true,
+  initialAvailability = []
+}: ClientReservationProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -183,7 +187,7 @@ const ClientReservation = ({
   const [currentMonthDisplay, setCurrentMonthDisplay] = useState<string>(
     format(currentWeek, "MMMM yyyy", { locale: es })
   );
-  const [availabilityData, setAvailabilityData] = useState<DailyAvailability[]>([]);
+  const [availabilityData, setAvailabilityData] = useState<DailyAvailability[]>(initialAvailability);
   const [dayPeriod, setDayPeriod] = useState<string>("all");
   const [selectedService, setSelectedService] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string>("");
@@ -247,6 +251,12 @@ const ClientReservation = ({
     const loadAvailability = async () => {
       if (!selectedService || !businessData?.business_id) {
         console.log("No service selected or no business ID:", { selectedService, businessId: businessData?.business_id });
+        return;
+      }
+
+      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+      if (availabilityData.some(day => day.date === selectedDateStr)) {
+        console.log("Using cached availability data for:", selectedDateStr);
         return;
       }
 
@@ -314,7 +324,7 @@ const ClientReservation = ({
     if (selectedService && businessData?.business_id) {
       loadAvailability();
     }
-  }, [selectedService, selectedDate, businessData?.business_id, toast]);
+  }, [selectedService, selectedDate, businessData?.business_id, toast, availabilityData]);
 
   useEffect(() => {
     const firstDay = weekDays[0];
@@ -394,6 +404,57 @@ const ClientReservation = ({
     setSelectedService(serviceId);
     setSelectedDate(new Date());
     setSelectedSlot("");
+    
+    // Cargar la disponibilidad inmediatamente al seleccionar el servicio
+    const startDate = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const endDate = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+    axios.get(
+      `${apiBaseUrl}/client_portal/${businessData.business_id}/available-slots/`,
+      {
+        params: {
+          start_date: startDate,
+          end_date: endDate,
+          service_id: serviceId
+        }
+      }
+    ).then(response => {
+      console.log("Initial availability loaded for service:", response.data);
+      const processedData = response.data.map((day: DailyAvailability) => {
+        let totalAvailableMinutes = 0;
+        let totalBusinessMinutes = 0;
+
+        day.available_slots.forEach(slot => {
+          const startTime = parseISO(`2023-01-01T${slot.start}`);
+          const endTime = parseISO(`2023-01-01T${slot.end}`);
+          totalAvailableMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+        });
+
+        day.business_hours.forEach(hours => {
+          const startTime = parseISO(`2023-01-01T${hours.start}`);
+          const endTime = parseISO(`2023-01-01T${hours.end}`);
+          totalBusinessMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+        });
+
+        return {
+          ...day,
+          percentage: totalBusinessMinutes > 0 
+            ? Math.floor((totalAvailableMinutes / totalBusinessMinutes) * 100) 
+            : 0
+        };
+      });
+
+      setAvailabilityData(processedData);
+    }).catch(error => {
+      console.error("Error loading initial availability:", error);
+      toast({
+        title: "Error al cargar disponibilidad",
+        description: "No se pudo cargar la disponibilidad. Por favor, intenta de nuevo.",
+        variant: "destructive",
+      });
+    });
+
     setStep(2);
   };
 
@@ -537,7 +598,10 @@ const ClientReservation = ({
                   "cursor-pointer hover:bg-gray-50 transition-colors",
                   selectedService === service.service_id && "ring-2 ring-emerald-500"
                 )}
-                onClick={() => handleServiceSelect(service.service_id)}
+                onClick={() => {
+                  console.log("Clicking service:", service);
+                  handleServiceSelect(service.service_id);
+                }}
               >
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-2">

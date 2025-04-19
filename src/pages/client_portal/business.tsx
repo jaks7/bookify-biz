@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BusinessDetails } from "@/components/business/BusinessDetails";
@@ -17,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks } from "date-fns";
 import { es } from "date-fns/locale";
 
 const fallbackBusinessData: BusinessDetail = {
@@ -39,11 +38,12 @@ const BusinessPage = () => {
   const [isReservationOpen, setIsReservationOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [lastBooking, setLastBooking] = useState<BookingRequest | null>(null);
+  const [initialAvailability, setInitialAvailability] = useState<any[]>([]);
   const { businessId } = useParams<{ businessId: string }>();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchBusinessDetails = async () => {
+    const fetchData = async () => {
       if (!businessId) {
         setError("ID del negocio no proporcionado en la URL.");
         setLoading(false);
@@ -54,30 +54,42 @@ const BusinessPage = () => {
         setLoading(true);
         setError(null);
         
-        const apiUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/client_portal/${businessId}/`;
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
         
-        const response = await axios.get(apiUrl); 
-        console.log("Business data loaded:", response.data);
+        // Obtener datos del negocio y disponibilidad en paralelo
+        const [businessResponse, availabilityResponse] = await Promise.all([
+          axios.get(`${baseUrl}/client_portal/${businessId}/`),
+          axios.get(`${baseUrl}/client_portal/${businessId}/available-slots/`, {
+            params: {
+              start_date: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+              end_date: format(endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+            }
+          })
+        ]);
+
+        console.log("Business data loaded:", businessResponse.data);
+        console.log("Initial availability loaded:", availabilityResponse.data);
         
-        // Ensure business_id is set in the loaded data
+        // Actualizar el estado con los datos obtenidos
         setBusiness({
-          ...response.data,
-          business_id: businessId // Make sure businessId is explicitly set
+          ...businessResponse.data,
+          business_id: businessId
         });
+        setInitialAvailability(availabilityResponse.data);
 
       } catch (err) {
-        console.error("Error fetching business details:", err);
+        console.error("Error fetching data:", err);
         if (axios.isAxiosError(err) && err.response?.status === 404) {
           setError("El negocio no fue encontrado o no está disponible públicamente.");
         } else {
-          setError("No se pudieron cargar los detalles del negocio. Inténtalo de nuevo más tarde.");
+          setError("No se pudieron cargar los datos. Inténtalo de nuevo más tarde.");
         }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchBusinessDetails();
+    fetchData();
   }, [businessId]);
 
   const handleReservationComplete = (formData: any) => {
@@ -160,6 +172,7 @@ const BusinessPage = () => {
                 inDialog={true} 
                 onComplete={handleReservationComplete}
                 businessData={business}
+                initialAvailability={initialAvailability}
                 showConfirmationAsStep={false}
               />
             )}
