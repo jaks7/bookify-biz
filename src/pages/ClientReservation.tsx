@@ -1,69 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  format, 
-  addDays, 
-  subDays, 
-  addWeeks, 
-  subWeeks, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isToday, 
-  isSameDay, 
-  isSameMonth,
-  parse,
-  parseISO,
-  addMinutes
-} from "date-fns";
+import { format, addDays, subDays, addWeeks, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isSameDay, isSameMonth, parse, parseISO, addMinutes } from "date-fns";
 import { es } from "date-fns/locale";
-import { 
-  Calendar as CalendarIcon, 
-  ChevronDown, 
-  ChevronLeft,
-  ChevronRight,
-  Clock, 
-  Filter, 
-  Scissors, 
-  User, 
-  Phone,
-  Mail,
-  CheckCircle2
-} from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, Clock, Filter, Scissors, User, Phone, Mail, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from "@/components/ui/popover";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from "@/components/ui/form";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -71,6 +21,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Service, DailyAvailability, AvailableSlot, BusinessHours, BusinessDetail } from "@/types/service";
 import { Professional, Appointment } from "@/types/professional";
+import axios from "axios";
 
 // Definir el esquema del formulario
 const clientFormSchema = z.object({
@@ -134,28 +85,6 @@ const professionals: Professional[] = [
   }
 ];
 
-const mockAvailabilityData: DailyAvailability[] = [
-  {
-    date: "2025-04-18",
-    business_hours: [
-      { start: "09:00", end: "17:00" }
-    ],
-    available_slots: [
-      { start: "09:30", end: "10:30" },
-      { start: "12:30", end: "17:00" }
-    ]
-  },
-  {
-    date: "2025-04-19",
-    business_hours: [
-      { start: "09:00", end: "14:00" }
-    ],
-    available_slots: [
-      { start: "09:00", end: "14:00" }
-    ]
-  }
-];
-
 const generateTimeSlots = (availableSlots: AvailableSlot[], serviceDuration: number): string[] => {
   let timeSlots: string[] = [];
   
@@ -213,6 +142,32 @@ const generateMonthAvailability = (availabilityData: DailyAvailability[], month:
   }, {} as Record<string, number>);
 };
 
+const fetchAvailableSlots = async (businessId: string, startDate: string, endDate: string) => {
+  try {
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_BASE_URL}/client_portal/${businessId}/available-slots/`,
+      {
+        params: {
+          start_date: startDate,
+          end_date: endDate
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching available slots:", error);
+    throw error;
+  }
+};
+
+// Modificar la interfaz DailyAvailability para incluir el porcentaje
+interface DailyAvailability {
+  date: string;
+  business_hours: BusinessHours[];
+  available_slots: AvailableSlot[];
+  percentage?: number; // Añadimos esta propiedad
+}
+
 const ClientReservation = ({ 
   businessData, 
   inDialog = false,
@@ -231,9 +186,7 @@ const ClientReservation = ({
   const [currentMonthDisplay, setCurrentMonthDisplay] = useState<string>(
     format(currentWeek, "MMMM yyyy", { locale: es })
   );
-  const [availabilityData, setAvailabilityData] = useState(() => 
-    generateMonthAvailability(mockAvailabilityData, new Date())
-  );
+  const [availabilityData, setAvailabilityData] = useState<DailyAvailability[]>([]);
   const [dayPeriod, setDayPeriod] = useState<string>("all");
   const [selectedService, setSelectedService] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string>("");
@@ -260,7 +213,7 @@ const ClientReservation = ({
     end: endOfWeek(currentWeek, { weekStartsOn: 1 })
   });
 
-  const findFirstAvailableSlot = (serviceId: number, availabilityData: DailyAvailability[]) => {
+  const findFirstAvailableSlot = (serviceId: number, availabilityData: DailyAvailability[]): {date: Date, time: string, professional: string} | null => {
     const service = businessData.services.find(s => s.service_id === serviceId);
     if (!service) return null;
     
@@ -288,10 +241,81 @@ const ClientReservation = ({
   useEffect(() => {
     const slots: Record<number, {date: Date, time: string, professional: string} | null> = {};
     businessData.services.forEach(service => {
-      slots[service.service_id] = findFirstAvailableSlot(service.service_id, mockAvailabilityData);
+      slots[service.service_id] = findFirstAvailableSlot(service.service_id, availabilityData);
     });
     setFirstAvailableSlots(slots);
-  }, [businessData.services]);
+  }, [businessData.services, availabilityData]);
+
+  useEffect(() => {
+    const loadAvailability = async () => {
+      if (!selectedService || !businessData?.business_id) {
+        console.log("No service selected or no business ID:", { selectedService, businessId: businessData?.business_id });
+        return;
+      }
+
+      try {
+        const startDate = format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        const endDate = format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        
+        console.log("Fetching availability:", {
+          businessId: businessData.business_id,
+          startDate,
+          endDate,
+          selectedService
+        });
+
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/client_portal/${businessData.business_id}/available-slots/`,
+          {
+            params: {
+              start_date: startDate,
+              end_date: endDate
+            }
+          }
+        );
+
+        console.log("API Response:", response.data);
+
+        const processedData = response.data.map((day: DailyAvailability) => {
+          let totalAvailableMinutes = 0;
+          let totalBusinessMinutes = 0;
+
+          day.available_slots.forEach(slot => {
+            const startTime = parseISO(`2023-01-01T${slot.start}`);
+            const endTime = parseISO(`2023-01-01T${slot.end}`);
+            totalAvailableMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+          });
+
+          day.business_hours.forEach(hours => {
+            const startTime = parseISO(`2023-01-01T${hours.start}`);
+            const endTime = parseISO(`2023-01-01T${hours.end}`);
+            totalBusinessMinutes += (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+          });
+
+          return {
+            ...day,
+            percentage: totalBusinessMinutes > 0 
+              ? Math.floor((totalAvailableMinutes / totalBusinessMinutes) * 100) 
+              : 0
+          };
+        });
+
+        setAvailabilityData(processedData);
+
+      } catch (error) {
+        console.error("Error loading availability:", error);
+        toast({
+          title: "Error al cargar disponibilidad",
+          description: "No se pudo cargar la disponibilidad. Por favor, intenta de nuevo.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    if (selectedService && businessData?.business_id) {
+      loadAvailability();
+    }
+  }, [selectedService, selectedDate, businessData?.business_id]);
 
   useEffect(() => {
     const firstDay = weekDays[0];
@@ -315,7 +339,7 @@ const ClientReservation = ({
     if (selectedService && selectedDate) {
       const service = businessData.services.find(s => s.service_id === selectedService);
       if (service) {
-        const dayAvailability = findAvailabilityForDate(selectedDate, mockAvailabilityData);
+        const dayAvailability = findAvailabilityForDate(selectedDate, availabilityData);
         if (dayAvailability) {
           const slots = generateTimeSlots(dayAvailability.available_slots, service.duration);
           setDailySlots(slots);
@@ -324,7 +348,7 @@ const ClientReservation = ({
         }
       }
     }
-  }, [selectedDate, selectedService, businessData.services]);
+  }, [selectedDate, selectedService, businessData.services, availabilityData]);
 
   const handlePrevWeek = () => {
     setCurrentWeek(subWeeks(currentWeek, 1));
@@ -348,7 +372,7 @@ const ClientReservation = ({
 
   const getDayAvailabilityClass = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
-    const availability = availabilityData[dateStr] || 0;
+    const availability = availabilityData.find(d => d.date === dateStr)?.percentage || 0;
     
     if (availability === 0) return "bg-gray-200 text-gray-700";
     if (availability < 25) return "bg-rose-400 text-white hover:bg-rose-500";
@@ -358,7 +382,7 @@ const ClientReservation = ({
 
   const getWeekDayAvailabilityColor = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
-    const availability = availabilityData[dateStr] || 0;
+    const availability = availabilityData.find(d => d.date === dateStr)?.percentage || 0;
     
     if (availability === 0) return "bg-gray-200";
     if (availability < 25) return "bg-yellow-400";
@@ -367,7 +391,10 @@ const ClientReservation = ({
   };
 
   const handleServiceSelect = (serviceId: number) => {
+    console.log("Service selected:", serviceId);
     setSelectedService(serviceId);
+    setSelectedDate(new Date());
+    setSelectedSlot("");
     setStep(2);
   };
 
@@ -504,37 +531,32 @@ const ClientReservation = ({
             <CardTitle>Selecciona un servicio</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {businessData.services.map(service => {
-
-              
-              return (
-                <Card 
-                  key={service.service_id} 
-                  className={cn(
-                    "cursor-pointer hover:bg-gray-50 transition-colors",
-                    selectedService === service.service_id && "ring-2 ring-emerald-500"
-                  )}
-                  onClick={() => handleServiceSelect(service.service_id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <Scissors className="h-5 w-5 text-emerald-500" />
-                        <h3 className="font-medium">{service.name}</h3>
-                      </div>
-                      <div className="text-sm text-gray-500 flex justify-between">
-                        <span className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {service.duration} min
-                        </span>
-                        <span>{service.price} €</span>
-                      </div>
-                      
+            {businessData.services.map((service, index) => (
+              <Card 
+                key={service.service_id || `service-${index}`}
+                className={cn(
+                  "cursor-pointer hover:bg-gray-50 transition-colors",
+                  selectedService === service.service_id && "ring-2 ring-emerald-500"
+                )}
+                onClick={() => handleServiceSelect(service.service_id)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <Scissors className="h-5 w-5 text-emerald-500" />
+                      <h3 className="font-medium">{service.name}</h3>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    <div className="text-sm text-gray-500 flex justify-between">
+                      <span className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        {service.duration} min
+                      </span>
+                      <span>{service.price} €</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </CardContent>
         </Card>
       )}

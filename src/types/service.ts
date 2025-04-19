@@ -47,6 +47,7 @@ export interface Appointment {
 }
 
 export interface BusinessDetail {
+  business_id: string;
   name: string;
   description: string | null;
   address: string;
