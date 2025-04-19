@@ -203,12 +203,9 @@ const ClientReservation = ({
   const [selectedSlot, setSelectedSlot] = useState<string>("");
   const [selectedProfessional, setSelectedProfessional] = useState<number | null>(null);
   const [step, setStep] = useState<number>(1);
-  const [isNewClient, setIsNewClient] = useState<boolean | null>(null);
-  const [otpValue, setOtpValue] = useState<string>("");
   const [firstAvailableSlots, setFirstAvailableSlots] = useState<Record<number, {date: Date, time: string, professional: string} | null>>({});
   const [dailySlots, setDailySlots] = useState<string[]>([]);
   const [showProfessionalsSelection, setShowProfessionalsSelection] = useState<boolean>(false);
-  const [otpDialogOpen, setOtpDialogOpen] = useState<boolean>(false);
 
   const clientForm = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
@@ -434,53 +431,76 @@ const ClientReservation = ({
     setStep(3);
   };
 
-  const onClientFormSubmit = (data: ClientFormValues) => {
-    setReservationData(prev => ({
-      ...prev,
-      phone: data.phone,
-      name: data.name,
-      email: data.email
-    }));
+  const onClientFormSubmit = async (data: ClientFormValues) => {
+    try {
+      // Actualizar el estado de reservationData con los datos del formulario
+      const updatedReservationData = {
+        ...reservationData,
+        phone: data.phone,
+        name: data.name,
+        email: data.email
+      };
 
-    if (onComplete) {
-      onComplete(reservationData);
-    }
+      // Formatear las fechas al formato que espera el backend (YYYY-MM-DDTHH:mm)
+      const formatDateTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return format(date, "yyyy-MM-dd'T'HH:mm");
+      };
 
-    const clientExists = Math.random() > 0.5;
-    setIsNewClient(!clientExists);
-    
-    if (clientExists) {
-      toast({
-        title: "Reserva confirmada",
-        description: "Tu cita ha sido reservada correctamente.",
-        variant: "default",
-      });
-      setStep(4);
-    } else {
-      toast({
-        title: "Código de verificación enviado",
-        description: "Te hemos enviado un código de verificación por SMS.",
-        variant: "default",
-      });
-      setOtpDialogOpen(true);
-    }
-  };
+      // Preparar los datos para la API
+      const bookingData = {
+        start_datetime: formatDateTime(updatedReservationData.start_datetime!),
+        end_datetime: formatDateTime(updatedReservationData.end_datetime!),
+        service_id: updatedReservationData.service_id,
+        professional_id: updatedReservationData.professional_id,
+        phone: data.phone,
+        name: data.name,
+        email: data.email
+      };
 
-  const verifyOtp = () => {
-    if (otpValue.length === 4) {
-      toast({
-        title: "Reserva confirmada",
-        description: "Tu cita ha sido reservada correctamente.",
-        variant: "default",
-      });
-      setOtpDialogOpen(false);
-      setStep(4);
-    } else {
-      toast({
-        title: "Código incorrecto",
-        description: "El código introducido no es válido.",
-        variant: "destructive",
-      });
+      console.log("Sending booking data:", bookingData);
+
+      // Hacer la llamada a la API
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+      const response = await axios.post(
+        `${apiBaseUrl}/client_portal/${businessData.business_id}/bookings/`,
+        bookingData
+      );
+
+      console.log("Booking created:", response.data);
+
+      // Si la reserva se creó correctamente
+      if (response.status === 201) {
+        if (onComplete) {
+          onComplete(updatedReservationData);
+        }
+
+        toast({
+          title: "Reserva confirmada",
+          description: "Tu cita ha sido reservada correctamente.",
+          variant: "default",
+        });
+        
+        setStep(4);
+      }
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      
+      // Manejar errores específicos
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.error || "No se pudo crear la reserva. Por favor, inténtalo de nuevo.";
+        toast({
+          title: "Error al crear la reserva",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -931,54 +951,6 @@ const ClientReservation = ({
           </CardContent>
         </Card>
       )}
-
-      <Dialog open={otpDialogOpen} onOpenChange={setOtpDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Verifica tu número de teléfono</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-6 py-4">
-            <p className="text-gray-500">
-              Hemos enviado un código de verificación a tu teléfono. 
-              Introdúcelo para confirmar tu reserva.
-            </p>
-
-            <div className="flex flex-col items-center justify-center gap-4">
-              <InputOTP maxLength={4} value={otpValue} onChange={setOtpValue}>
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                </InputOTPGroup>
-              </InputOTP>
-
-              <Button 
-                variant="link" 
-                type="button" 
-                onClick={() => {
-                  toast({
-                    title: "Código reenviado",
-                    description: "Te hemos enviado un nuevo código de verificación.",
-                  });
-                }}
-              >
-                Reenviar código
-              </Button>
-            </div>
-          </div>
-          
-          <DialogFooter className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOtpDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={verifyOtp}>
-              Verificar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {step === 4 && (
         <Card className="border-emerald-200 bg-emerald-50">
