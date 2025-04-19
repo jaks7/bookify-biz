@@ -23,14 +23,12 @@ import { Service, DailyAvailability, AvailableSlot, BusinessHours, BusinessDetai
 import { Professional, Appointment } from "@/types/professional";
 import axios from "axios";
 
-// Definir el esquema del formulario
 const clientFormSchema = z.object({
   phone: z.string().min(9, "El número de teléfono debe tener al menos 9 dígitos"),
   name: z.string().optional(),
   email: z.string().email("El email debe ser válido").optional()
 });
 
-// Definir el tipo basado en el esquema
 type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 const professionals: Professional[] = [
@@ -160,12 +158,11 @@ const fetchAvailableSlots = async (businessId: string, startDate: string, endDat
   }
 };
 
-// Modificar la interfaz DailyAvailability para incluir el porcentaje
 interface DailyAvailability {
   date: string;
   business_hours: BusinessHours[];
   available_slots: AvailableSlot[];
-  percentage?: number; // Añadimos esta propiedad
+  percentage?: number;
 }
 
 const ClientReservation = ({ 
@@ -264,12 +261,14 @@ const ClientReservation = ({
           selectedService
         });
 
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
         const response = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL}/client_portal/${businessData.business_id}/available-slots/`,
+          `${apiBaseUrl}/client_portal/${businessData.business_id}/available-slots/`,
           {
             params: {
               start_date: startDate,
-              end_date: endDate
+              end_date: endDate,
+              service_id: selectedService
             }
           }
         );
@@ -315,7 +314,7 @@ const ClientReservation = ({
     if (selectedService && businessData?.business_id) {
       loadAvailability();
     }
-  }, [selectedService, selectedDate, businessData?.business_id]);
+  }, [selectedService, selectedDate, businessData?.business_id, toast]);
 
   useEffect(() => {
     const firstDay = weekDays[0];

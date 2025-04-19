@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BusinessDetails } from "@/components/business/BusinessDetails";
@@ -20,6 +21,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 const fallbackBusinessData: BusinessDetail = {
+  business_id: "",
   name: "Cargando...",
   description: null,
   address: "",
@@ -57,7 +59,11 @@ const BusinessPage = () => {
         const response = await axios.get(apiUrl); 
         console.log("Business data loaded:", response.data);
         
-        setBusiness(response.data);
+        // Ensure business_id is set in the loaded data
+        setBusiness({
+          ...response.data,
+          business_id: businessId // Make sure businessId is explicitly set
+        });
 
       } catch (err) {
         console.error("Error fetching business details:", err);
@@ -140,11 +146,15 @@ const BusinessPage = () => {
           open={isReservationOpen} 
           onOpenChange={(open) => {
             setIsReservationOpen(open);
-            if (!open) {
-            }
           }}
         >
           <DialogContent className="sm:max-w-[100%] md:max-w-[90%] lg:max-w-[80%] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Reserva tu cita</DialogTitle>
+              <DialogDescription>
+                Selecciona el servicio, fecha y horario para tu cita.
+              </DialogDescription>
+            </DialogHeader>
             {isReservationOpen && (
               <ClientReservation 
                 inDialog={true} 

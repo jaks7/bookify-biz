@@ -1,3 +1,4 @@
+
 export interface BusinessDetail {
   business_id: string;
   name: string;
