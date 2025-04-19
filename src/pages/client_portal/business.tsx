@@ -8,6 +8,7 @@ import axios from "axios";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import ClientReservation from "../ClientReservation";
+import ClientNavbar from "@/components/client-portal/ClientNavbar";
 import { 
   Dialog, 
   DialogContent,
@@ -56,7 +57,6 @@ const BusinessPage = () => {
         
         const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
         
-        // Obtener datos del negocio y disponibilidad en paralelo
         const [businessResponse, availabilityResponse] = await Promise.all([
           axios.get(`${baseUrl}/client_portal/${businessId}/`),
           axios.get(`${baseUrl}/client_portal/${businessId}/available-slots/`, {
@@ -70,7 +70,6 @@ const BusinessPage = () => {
         console.log("Business data loaded:", businessResponse.data);
         console.log("Initial availability loaded:", availabilityResponse.data);
         
-        // Actualizar el estado con los datos obtenidos
         setBusiness({
           ...businessResponse.data,
           business_id: businessId
@@ -139,89 +138,92 @@ const BusinessPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10">
-      <div className="container mx-auto">
-        <BusinessDetails 
-          business={business} 
-          reservationButton={
-            <Button 
-              className="w-full" 
-              size="lg" 
-              onClick={() => setIsReservationOpen(true)}
-            >
-              Reservar cita
-            </Button>
-          } 
-        />
-        
-        <Dialog 
-          open={isReservationOpen} 
-          onOpenChange={(open) => {
-            setIsReservationOpen(open);
-          }}
-        >
-          <DialogContent className="sm:max-w-[100%] md:max-w-[90%] lg:max-w-[80%] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Reserva tu cita</DialogTitle>
-              <DialogDescription>
-                Selecciona el servicio, fecha y horario para tu cita.
-              </DialogDescription>
-            </DialogHeader>
-            {isReservationOpen && (
-              <ClientReservation 
-                inDialog={true} 
-                onComplete={handleReservationComplete}
-                businessData={business}
-                initialAvailability={initialAvailability}
-                showConfirmationAsStep={false}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
+    <>
+      <ClientNavbar />
+      <div className="min-h-screen bg-gray-50 pt-20 pb-10">
+        <div className="container mx-auto">
+          <BusinessDetails 
+            business={business} 
+            reservationButton={
+              <Button 
+                className="w-full" 
+                size="lg" 
+                onClick={() => setIsReservationOpen(true)}
+              >
+                Reservar cita
+              </Button>
+            } 
+          />
+          
+          <Dialog 
+            open={isReservationOpen} 
+            onOpenChange={(open) => {
+              setIsReservationOpen(open);
+            }}
+          >
+            <DialogContent className="sm:max-w-[100%] md:max-w-[90%] lg:max-w-[80%] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Reserva tu cita</DialogTitle>
+                <DialogDescription>
+                  Selecciona el servicio, fecha y horario para tu cita.
+                </DialogDescription>
+              </DialogHeader>
+              {isReservationOpen && (
+                <ClientReservation 
+                  inDialog={true} 
+                  onComplete={handleReservationComplete}
+                  businessData={business}
+                  initialAvailability={initialAvailability}
+                  showConfirmationAsStep={false}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
 
-        <Dialog open={showConfirmation} onOpenChange={handleCloseConfirmation}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>¡Reserva confirmada!</DialogTitle>
-              <DialogDescription>
-                Tu cita ha sido reservada correctamente. Recibirás un mensaje de confirmación.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="my-6">
-              <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
+          <Dialog open={showConfirmation} onOpenChange={handleCloseConfirmation}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>¡Reserva confirmada!</DialogTitle>
+                <DialogDescription>
+                  Tu cita ha sido reservada correctamente. Recibirás un mensaje de confirmación.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="my-6">
+                <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                
+                {lastBooking && (
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Fecha:</span> {
+                      format(new Date(lastBooking.start_datetime), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
+                    }</p>
+                    <p><span className="font-medium">Hora:</span> {
+                      format(new Date(lastBooking.start_datetime), "HH:mm")
+                    }</p>
+                    {business.services?.find(s => s.service_id === lastBooking.service_id) && (
+                      <p>
+                        <span className="font-medium">Servicio:</span> {
+                          business.services.find(s => s.service_id === lastBooking.service_id)?.name
+                        }
+                      </p>
+                    )}
+                    {lastBooking.name && <p><span className="font-medium">Cliente:</span> {lastBooking.name}</p>}
+                  </div>
+                )}
               </div>
               
-              {lastBooking && (
-                <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Fecha:</span> {
-                    format(new Date(lastBooking.start_datetime), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
-                  }</p>
-                  <p><span className="font-medium">Hora:</span> {
-                    format(new Date(lastBooking.start_datetime), "HH:mm")
-                  }</p>
-                  {business.services?.find(s => s.service_id === lastBooking.service_id) && (
-                    <p>
-                      <span className="font-medium">Servicio:</span> {
-                        business.services.find(s => s.service_id === lastBooking.service_id)?.name
-                      }
-                    </p>
-                  )}
-                  {lastBooking.name && <p><span className="font-medium">Cliente:</span> {lastBooking.name}</p>}
-                </div>
-              )}
-            </div>
-            
-            <DialogFooter>
-              <Button onClick={handleCloseConfirmation}>
-                Volver al negocio
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button onClick={handleCloseConfirmation}>
+                  Volver al negocio
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
